@@ -1,10 +1,10 @@
 import torch
 import torch.utils.data as data
+import torch.nn.functional as F
 from PIL import Image
 import os
-import math
 import functools
-import copy
+import json
 
 
 def pil_loader(path):
@@ -31,10 +31,11 @@ def get_default_image_loader():
         return pil_loader
 
 
-def video_loader(video_dir_path, frame_indices, image_loader):
+def video_loader(video_dir_path, n_frames, image_loader):
     video = []
-    for i in frame_indices:
-        image_path = os.path.join(video_dir_path, 'image_{:05d}.jpg'.format(i))
+    assert(n_frames != 0)
+    for i in range(1, n_frames+1):
+        image_path = os.path.join(video_dir_path, 'image_{:04d}.jpg'.format(i))
         if os.path.exists(image_path):
             video.append(image_loader(image_path))
         else:
@@ -79,59 +80,137 @@ def get_video_names_and_annotations(data, subset):
     return video_names, annotations
 
 
-def make_dataset(video_path, sample_duration):
+def make_dataset(video_path, max_duration):
     dataset = []
 
     n_frames = len(os.listdir(video_path))
-
-    begin_t = 1
-    end_t = n_frames
+    # begin_t = 1
+    # end_t = n_frames
     sample = {
         'video': video_path,
-        'segment': [begin_t, end_t],
         'n_frames': n_frames,
+        'frame_indices': list(range(1, 1 + n_frames))
     }
+    return sample
+    # sample_i = copy.deepcopy(sample)
+    # sample_i['frame_indices'] = list(range(i, i + sample_duration))
+    # sample_i['segment'] = torch.IntTensor([i, i + sample_duration - 1])
+    # dataset.append(sample_i)
 
-    step = sample_duration
-    for i in range(1, (n_frames - sample_duration + 1), step):
-        sample_i = copy.deepcopy(sample)
-        sample_i['frame_indices'] = list(range(i, i + sample_duration))
-        sample_i['segment'] = torch.IntTensor([i, i + sample_duration - 1])
-        dataset.append(sample_i)
+    # step = sample_duration
+    # for i in range(1, (n_frames - sample_duration + 1), step):
+    #     sample_i = copy.deepcopy(sample)
+    #     sample_i['frame_indices'] = list(range(i, i + sample_duration))
+    #     sample_i['segment'] = torch.IntTensor([i, i + sample_duration - 1])
+    #     dataset.append(sample_i)
 
-    return dataset
+    # return dataset
+
+#
+# class Video(data.Dataset):
+#     def __init__(self, video_path, clinical_score,
+#                  spatial_transform=None, temporal_transform=None,
+#                  , get_loader=get_default_video_loader):
+#         self.data = make_dataset(video_path, max_duration),
+#         self.label = clinical_score,
+#         self.spatial_transform = spatial_transform
+#         self.temporal_transform = temporal_transform
+#         self.loader = get_loader()
+#
+#     def __getitem__(self, index):
+#         """
+#         Args:
+#             index (int): Index
+#         Returns:
+#             tuple: (image, target) where target is class_index of the target class.
+#         """
+#         path = self.data[index]['video']
+#         n_frames = self.data[index]['n_frames']
+#         frame_indices = self.data[index]['frame_indices']
+#         if self.temporal_transform is not None:
+#             frame_indices = self.temporal_transform(frame_indices)
+#         clip = self.loader(path, n_frames)
+#         if self.spatial_transform is not None:
+#             clip = [self.spatial_transform(img) for img in clip]
+#         clip = torch.stack(clip, 0).permute(1, 0, 2, 3)
+#
+#         target = self.label[index]
+#
+#         return clip, target
+#
+#     def __len__(self):
+#         return len(self.data)
+#
+#
+#
+#
+#
+#
+#
 
 
-class Video(data.Dataset):
-    def __init__(self, video_path,
-                 spatial_transform=None, temporal_transform=None,
-                 sample_duration=16, get_loader=get_default_video_loader):
-        self.data = make_dataset(video_path, sample_duration)
 
+
+
+
+
+
+
+
+## ---------------------- Dataloaders ---------------------- ##
+# for 3DCNN
+class CNN3D_Dataset(data.Dataset):
+    "Characterizes a dataset for PyTorch"
+    def __init__(self, data_path, folders, labels, spatial_transform=None, temporal_transform=None):
+        "Initialization"
+        self.data_path = data_path
+        self.labels = labels
+        self.folders = folders
         self.spatial_transform = spatial_transform
         self.temporal_transform = temporal_transform
-        self.loader = get_loader()
-
-    def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-        Returns:
-            tuple: (image, target) where target is class_index of the target class.
-        """
-        path = self.data[index]['video']
-
-        frame_indices = self.data[index]['frame_indices']
-        if self.temporal_transform is not None:
-            frame_indices = self.temporal_transform(frame_indices)
-        clip = self.loader(path, frame_indices)
-        if self.spatial_transform is not None:
-            clip = [self.spatial_transform(img) for img in clip]
-        clip = torch.stack(clip, 0).permute(1, 0, 2, 3)
-
-        target = self.data[index]['segment']
-
-        return clip, target
 
     def __len__(self):
-        return len(self.data)
+        "Denotes the total number of samples"
+        return len(self.folders)
+
+    def read_images(self, path, selected_folder):
+        X = []
+        n_frames = len(os.listdir(os.path.join(path, selected_folder)))
+
+        # TODO: check what is the max number of frames for the target exercise
+        MAX_NUM_FRAMES = 45
+
+        assert(n_frames != 0)
+        for i in range(1, n_frames + 1):
+            image_name = os.path.join(path, selected_folder, 'image_{:04d}.jpg'.format(i))
+
+            image = Image.open(image_name).convert('RGB')
+
+            if self.temporal_transform is not None:
+                # TODO
+                continue
+            if self.spatial_transform is not None:
+                image = self.spatial_transform(image)
+            X.append(image.squeeze_(0))
+
+        X = torch.stack(X, dim=0)           # [frames * channels * height * weight]
+        X = X.permute(1, 0, 2, 3)           # [channels * frames * height * weight]
+
+        # The needed padding is the difference between the
+        # n_frames and MAX_NUM_FRAMES with zeros.
+        p4d = (0, 0, 0, 0, 0, MAX_NUM_FRAMES - n_frames)
+        out = F.pad(X, p4d, "constant", 0)
+        # padded_img = F.pad(image, [0, MAX_FRAMES - img.size(2), 0, MAX_FRAMES - img.size(1)])
+        return out
+
+    def __getitem__(self, index):
+        "Generates one sample of data"
+        # Select sample
+        folder = self.folders[index]
+
+        # Load data
+        X = self.read_images(self.data_path, folder)  # (input) spatial images
+        # y = torch.LongTensor([self.labels[index]])                                  # (labels) LongTensor are for int64 instead of FloatTensor
+        y = self.labels[index]                                      # (label) clinical score
+        # print(X.shape)
+        return X, y

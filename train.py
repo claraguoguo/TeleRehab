@@ -1,12 +1,184 @@
-import torch
-from torch.autograd import Variable
+
+from sklearn.model_selection import train_test_split
+
+import torch.nn as nn
+import torch.optim as optim
+from model import generate_model
+from opts import parse_opts
+from util import *
+import pandas as pd
 import time
-import os
-import sys
 
-from utils import AverageMeter, calculate_accuracy
+def evaluate(model, loader, criterion):
+    """ Evaluate the network on the validation set.
+
+     Args:
+         model: PyTorch neural network object
+         loader: PyTorch data loader for the validation set
+         criterion: The loss function
+     Returns:
+         err: A scalar for the average classification error over the validation set
+         loss: A scalar for the average loss function over the validation set
+     """
+    total_loss = 0.0
+    total_err = 0.0
+    total_epoch = 0
+
+    for i, data in enumerate(loader, 0):
+        inputs, labels = data
+        # labels = normalize_label(labels)  # Convert labels to 0/1
+        outputs = model(inputs)
+        loss = criterion(outputs, labels.float())
+        corr = (outputs > 0.0).squeeze().long() != labels
+        total_err += int(corr.sum())
+        total_loss += loss.item()
+        total_epoch += len(labels)
+
+    err = float(total_err) / total_epoch
+    loss = float(total_loss) / (i + 1)
+
+    return err, loss
+
+# def main2():
+#     # from PIL import Image
+#     #
+#     # path = '/Users/Clara/Documents/University/Year4/Thesis/Code/3D-CNN/tmp/image_0001.jpg'
+#     # with open(path, 'rb') as f:
+#     #     with Image.open(f) as img:
+#     #         tmp = img.convert('RGB')
+#     #         im = Image.open(tmp)
+#     #         im.show()
+#     #         print(tmp)
+#
+#     video_path = 'videos/v1.mp4'
+#
+#     load_data(video_path)
 
 
+def main():
+
+    extract_frame = False
+    ########################################################################
+    # load args and configs
+    args = parse_opts()
+    config = get_config(args.config)
+
+    ########################################################################
+    # Extract Frames from videos
+    if extract_frame:
+        extract_frames_from_video(config)
+    extracted_frame_dir = config.get('dataset', 'extracted_frame_path')
+
+    ########################################################################
+    # Fixed PyTorch random seed for reproducible result
+    seed = config.getint('random_state', 'seed')
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    #######################################################################
+    # Loads the configuration for the experiment from the configuration file
+    if args.model_name == 'cnn':
+        model_name = 'cnn'
+    else:
+        assert(False)
+
+    num_epochs = config.getint(model_name, 'epoch')
+    optimizer = config.get(model_name, 'optimizer')
+    learning_rate = config.getfloat(model_name, 'lr')
+    test_size = config.getfloat('dataset', 'test_size')
+    ########################################################################
+    video_names = ['v1', 'v2']
+    # TODO: add code to find target videos
+    # list all data files
+    all_X_list = video_names                       # all video file names
+    all_y_list = [40, 50]                          # all video labels
+
+    # train, test split
+    train_list, test_list, train_label, test_label = train_test_split(all_X_list, all_y_list, test_size=test_size, random_state=seed)
+    
+    # Obtain the PyTorch data loader objects to load batches of the datasets
+    train_loader, valid_loader = get_data_loader(all_X_list, [], all_y_list, [], model_name, config)
+
+    # train_loader, valid_loader = get_data_loader(train_list, test_list, train_label, test_label, model_name, config)
+    ########################################################################
+    # Define a Convolutional Neural Network, defined in models
+    model = generate_model(model_name, config)
+
+    ########################################################################
+    # Define the Loss function and optimizer
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-4)
+
+    ########################################################################
+    # Set up some numpy arrays to store the training/test loss/accuracy
+    train_err = np.zeros(num_epochs)
+    train_loss = np.zeros(num_epochs)
+    val_err = np.zeros(num_epochs)
+    val_loss = np.zeros(num_epochs)
+
+    ########################################################################
+    # Train the network
+    # Loop over the data iterator and sample a new batch of training data
+    # Get the output from the network, and optimize our loss function.
+    start_time = time.time()
+    for epoch in range(num_epochs):  # loop over the dataset multiple times
+        total_train_loss = 0.0
+        total_train_err = 0.0
+
+        total_epoch = 0
+
+        for i, data in enumerate(train_loader, 0):
+            # Get the inputs
+            inputs, labels = data
+            # labels = normalize_label(labels) # Convert labels to 0/1
+
+            # Zero the parameter gradients
+            optimizer.zero_grad()
+
+            # Forward pass, backward pass, and optimize
+            outputs = model(inputs)
+            loss = criterion(outputs, labels.float())
+            loss.backward()
+            optimizer.step()
+
+            # Calculate the statistics
+            total_train_loss += loss.i            total_epoch += len(labels)
+
+        train_err[epoch] = float(total_train_err) / total_epoch
+        train_loss[epoch] = float(total_train_loss) / (i+1)
+        val_err[epoch], val_loss[epoch] = evaluate(model, valid_loader, criterion)
+
+        print("Epoch {}: Train err: {}, Train loss: {} | Validation err: {}, Validation loss: {}".format(epoch + 1, train_err[epoch], train_loss[epoch], val_err[epoch], val_loss[epoch]))
+
+    print('Finished Training')
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    print("Total time elapsed: {:.2f} seconds".format(elapsed_time))
+
+    # Save the model to a file
+    # model_path = get_model_name(config)
+    # torch.save(model.state_dict(), model_path)
+
+    # Write the train/test loss/err into CSV file for plotting later
+    epochs = np.arange(1, num_epochs + 1)
+
+    # df = pd.DataFrame({"epoch": epochs, "train_err": train_err})
+    # df.to_csv("train_err_{}.csv".format(model_path), index=False)
+    #
+    # df = pd.DataFrame({"epoch": epochs, "train_loss": train_loss})
+    # df.to_csv("train_loss_{}.csv".format(model_path), index=False)
+    #
+    # df = pd.DataFrame({"epoch": epochs, "val_err": val_err})
+    # df.to_csv("val_err_{}.csv".format(model_path), index=False)
+    #
+    # df = pd.DataFrame({"epoch": epochs, "val_loss": val_loss})
+    # df.to_csv("val_loss_{}.csv".format(model_path), index=False)
+
+
+if __name__ == '__main__':
+    main()
+
+'''
 def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
                 epoch_logger, batch_logger):
     print('train at epoch {}'.format(epoch))
@@ -73,3 +245,4 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
             'optimizer' : optimizer.state_dict(),
         }
         torch.save(states, save_file_path)
+'''

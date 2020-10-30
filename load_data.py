@@ -102,7 +102,7 @@ class KiMoReDataLoader(object):
                         assert False
 
                     # insert video name to df
-                    self.df.loc[subject_ID, 'video_name'] = file
+                    self.df.loc[subject_ID, 'video_name'] = video_name
                     list.append(subject_ID)
 
         self.max_video_sec = max_video_sec
@@ -146,6 +146,7 @@ class KiMoReDataLoader(object):
                         list.append(subject_ID)
                     '''
                     # Note: we are not using the following code, because the npy file generated is TOO BIG (~1.6GB)!!
+                    
                     videodata = skvideo.io.vread(video_name, inputdict={"-r": fps})
                         # TODO: skvideo.io fps config is NOT WORKING :(
                     max_num_frames = videodata.shape[0] if videodata.shape[0] > max_num_frames else max_num_frames
@@ -221,12 +222,20 @@ class KiMoReDataLoader(object):
         print('Loading KIMORE Dataset...')
         # get df that contains all clinical scores for all exercises
         scores_list = self.get_clinical_scores()
-        # NOTE: 'E_ID17' does not have scores
 
+        # TODO: create method to clean NA data
+        # NOTE: 'E_ID17' does not have scores
+        self.df = self.df.dropna(subset=['clinical TS Ex#1'])
 
         # add video names to df and set max_video_sec
         videos_list = self.get_video_names()
 
         # find any missing RGB videos
         self.find_missing_data(scores_list, videos_list)
+
+        # TODO
+        # remove missing data
+        self.df = self.df[self.df['video_name'] != 0]
+        self.df.to_pickle('dataframe')
+
         print('Finished loading Dataset')

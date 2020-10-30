@@ -76,14 +76,14 @@ def main():
     test_size = config.getfloat('dataset', 'test_size')
     ########################################################################
     # list all data files
-    all_X_list = df['video_names']                       # all video file names
+    all_X_list = df['video_name']                       # all video file names
     all_y_list = df['clinical TS Ex#1']                  # all video labels
 
     # train, test split
     train_list, test_list, train_label, test_label = train_test_split(all_X_list, all_y_list, test_size=test_size, random_state=seed)
     
     # Obtain the PyTorch data loader objects to load batches of the datasets
-    train_loader, valid_loader = get_data_loader(train_list, test_list, train_label, test_label, model_name, config)
+    train_loader, valid_loader = get_data_loader(train_list, test_list, train_label, test_label, model_name, max_video_sec, config)
     ########################################################################
     # Define a Convolutional Neural Network, defined in models
     model = generate_model(model_name, config)

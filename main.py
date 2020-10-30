@@ -8,12 +8,12 @@ from torch import nn
 
 from opts import parse_opts
 from model import generate_model
-from mean import get_mean
+# from mean import get_mean
 from classify import classify_video
 
 if __name__=="__main__":
     opt = parse_opts()
-    opt.mean = get_mean()
+    opt.mean = [114.7748, 107.7354, 99.4750]
     opt.arch = '{}-{}'.format(opt.model_name, opt.model_depth)
     opt.sample_size = 112
     opt.sample_duration = 16
@@ -66,3 +66,4 @@ if __name__=="__main__":
 
     with open(opt.output, 'w') as f:
         json.dump(outputs, f)
+

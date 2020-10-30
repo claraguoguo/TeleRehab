@@ -5,7 +5,8 @@ from PIL import Image
 import os
 import functools
 import json
-
+import math
+import cv2
 
 def pil_loader(path):
     # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
@@ -161,55 +162,89 @@ def make_dataset(video_path, max_duration):
 # for 3DCNN
 class CNN3D_Dataset(data.Dataset):
     "Characterizes a dataset for PyTorch"
-    def __init__(self, data_path, folders, labels, spatial_transform=None, temporal_transform=None):
+    def __init__(self, data_path, inputs, labels, max_frames, spatial_transform=None, temporal_transform=None):
         "Initialization"
         self.data_path = data_path
         self.labels = labels
-        self.folders = folders
+        self.inputs = inputs
         self.spatial_transform = spatial_transform
         self.temporal_transform = temporal_transform
+        self.max_frames = max_frames
 
     def __len__(self):
         "Denotes the total number of samples"
-        return len(self.folders)
+        return len(self.inputs)
 
-    def read_images(self, path, selected_folder):
+    def _extract_frames_from_video(self, video_path):
         X = []
-        n_frames = len(os.listdir(os.path.join(path, selected_folder)))
+        n_frames = 0
+        cap = cv2.VideoCapture(video_path)  # capturing the video from the given path
+        frameRate = cap.get(5)  # frame rate
+        while (cap.isOpened()):
+            frameId = cap.get(1)  # current frame number
+            ret, frame = cap.read()
+            if (ret != True):
+                break
+            if (frameId % math.floor(frameRate) == 0):
 
-        # TODO: check what is the max number of frames for the target exercise
-        MAX_NUM_FRAMES = 45
+                if self.temporal_transform is not None:
+                    # TODO
+                    continue
+                if self.spatial_transform is not None:
+                    frame = self.spatial_transform(frame)
 
-        assert(n_frames != 0)
-        for i in range(1, n_frames + 1):
-            image_name = os.path.join(path, selected_folder, 'image_{:04d}.jpg'.format(i))
+                X.append(frame.squeeze_(0))
+                n_frames += 1
 
-            image = Image.open(image_name).convert('RGB')
+        cap.release()
 
-            if self.temporal_transform is not None:
-                # TODO
-                continue
-            if self.spatial_transform is not None:
-                image = self.spatial_transform(image)
-            X.append(image.squeeze_(0))
-
-        X = torch.stack(X, dim=0)           # [frames * channels * height * weight]
-        X = X.permute(1, 0, 2, 3)           # [channels * frames * height * weight]
+        X = torch.stack(X, dim=0)  # [frames * channels * height * weight]
+        X = X.permute(1, 0, 2, 3)  # [channels * frames * height * weight]
 
         # The needed padding is the difference between the
         # n_frames and MAX_NUM_FRAMES with zeros.
-        p4d = (0, 0, 0, 0, 0, MAX_NUM_FRAMES - n_frames)
+        p4d = (0, 0, 0, 0, 0, self.max_frames - n_frames)
         out = F.pad(X, p4d, "constant", 0)
         # padded_img = F.pad(image, [0, MAX_FRAMES - img.size(2), 0, MAX_FRAMES - img.size(1)])
         return out
 
+    # def read_images(self, input):
+    #     X = []
+    #     n_frames = len(os.listdir(os.path.join(path, selected_folder)))
+    #
+    #     # TODO: check what is the max number of frames for the target exercise
+    #     MAX_NUM_FRAMES = 45
+    #
+    #     assert(n_frames != 0)
+    #     for i in range(1, n_frames + 1):
+    #         image_name = os.path.join(path, selected_folder, 'image_{:04d}.jpg'.format(i))
+    #
+    #         image = Image.open(image_name).convert('RGB')
+    #
+    #         if self.temporal_transform is not None:
+    #             # TODO
+    #             continue
+    #         if self.spatial_transform is not None:
+    #             image = self.spatial_transform(image)
+    #         X.append(image.squeeze_(0))
+    #
+    #     X = torch.stack(X, dim=0)           # [frames * channels * height * weight]
+    #     X = X.permute(1, 0, 2, 3)           # [channels * frames * height * weight]
+    #
+    #     # The needed padding is the difference between the
+    #     # n_frames and MAX_NUM_FRAMES with zeros.
+    #     p4d = (0, 0, 0, 0, 0, MAX_NUM_FRAMES - n_frames)
+    #     out = F.pad(X, p4d, "constant", 0)
+    #     # padded_img = F.pad(image, [0, MAX_FRAMES - img.size(2), 0, MAX_FRAMES - img.size(1)])
+    #     return out
+
     def __getitem__(self, index):
         "Generates one sample of data"
         # Select sample
-        folder = self.folders[index]
+        input = self.inputs[index]
 
         # Load data
-        X = self.read_images(self.data_path, folder)  # (input) spatial images
+        X = self._extract_frames_from_video(input)  # (input) spatial images
         # y = torch.LongTensor([self.labels[index]])                                  # (labels) LongTensor are for int64 instead of FloatTensor
         y = self.labels[index]                                      # (label) clinical score
         # print(X.shape)

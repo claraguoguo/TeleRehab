@@ -6,8 +6,9 @@ import torch.optim as optim
 from model import generate_model
 from opts import parse_opts
 from util import *
-import pandas as pd
+import numpy as np
 import time
+from load_data import KiMoReDataLoader
 
 def evaluate(model, loader, criterion):
     """ Evaluate the network on the validation set.
@@ -39,35 +40,22 @@ def evaluate(model, loader, criterion):
 
     return err, loss
 
-# def main2():
-#     # from PIL import Image
-#     #
-#     # path = '/Users/Clara/Documents/University/Year4/Thesis/Code/3D-CNN/tmp/image_0001.jpg'
-#     # with open(path, 'rb') as f:
-#     #     with Image.open(f) as img:
-#     #         tmp = img.convert('RGB')
-#     #         im = Image.open(tmp)
-#     #         im.show()
-#     #         print(tmp)
-#
-#     video_path = 'videos/v1.mp4'
-#
-#     load_data(video_path)
-
-
 def main():
 
-    extract_frame = False
+    extract_frame = True
     ########################################################################
-    # load args and configs
+    # load args and config
     args = parse_opts()
     config = get_config(args.config)
 
     ########################################################################
     # Extract Frames from videos
     if extract_frame:
-        extract_frames_from_video(config)
-    extracted_frame_dir = config.get('dataset', 'extracted_frame_path')
+        # extract_frames_from_video(config)
+        data_loader = KiMoReDataLoader(config)
+        data_loader.load_data()
+        df = data_loader.df
+        max_video_sec = data_loader.max_video_sec
 
     ########################################################################
     # Fixed PyTorch random seed for reproducible result
@@ -80,26 +68,22 @@ def main():
     if args.model_name == 'cnn':
         model_name = 'cnn'
     else:
-        assert(False)
+        assert False
 
     num_epochs = config.getint(model_name, 'epoch')
     optimizer = config.get(model_name, 'optimizer')
     learning_rate = config.getfloat(model_name, 'lr')
     test_size = config.getfloat('dataset', 'test_size')
     ########################################################################
-    video_names = ['v1', 'v2']
-    # TODO: add code to find target videos
     # list all data files
-    all_X_list = video_names                       # all video file names
-    all_y_list = [40, 50]                          # all video labels
+    all_X_list = df['video_names']                       # all video file names
+    all_y_list = df['clinical TS Ex#1']                  # all video labels
 
     # train, test split
     train_list, test_list, train_label, test_label = train_test_split(all_X_list, all_y_list, test_size=test_size, random_state=seed)
     
     # Obtain the PyTorch data loader objects to load batches of the datasets
-    train_loader, valid_loader = get_data_loader(all_X_list, [], all_y_list, [], model_name, config)
-
-    # train_loader, valid_loader = get_data_loader(train_list, test_list, train_label, test_label, model_name, config)
+    train_loader, valid_loader = get_data_loader(train_list, test_list, train_label, test_label, model_name, config)
     ########################################################################
     # Define a Convolutional Neural Network, defined in models
     model = generate_model(model_name, config)
@@ -142,7 +126,9 @@ def main():
             optimizer.step()
 
             # Calculate the statistics
-            total_train_loss += loss.i            total_epoch += len(labels)
+            total_train_loss += loss.item()
+            total_epoch += len(labels)
+        #     TODO: add print statement
 
         train_err[epoch] = float(total_train_err) / total_epoch
         train_loss[epoch] = float(total_train_loss) / (i+1)

@@ -1,44 +1,13 @@
 import torch
-import torchvision
 from torch.utils.data.sampler import SubsetRandomSampler
 import torchvision.transforms as transforms
-import numpy as np
 import os
-import subprocess
-
 from dataset import CNN3D_Dataset
 
 # from spatial_transforms import (Compose, Normalize, Scale, CenterCrop, ToTensor)
 # from temporal_transforms import LoopPadding
 
 import configparser
-
-
-def extract_frames_from_video(config):
-    ########################################################################
-    # Extract Frames from videos
-    extracted_frame_dir = config.get('dataset', 'extracted_frame_path')
-    video_data_dir = config.get('dataset', 'dataset_path')
-    suffix = config.get('dataset', 'video_suffix')
-    fps = config.getint('dataset', 'fps')
-
-    if os.path.exists(extracted_frame_dir):
-        subprocess.call('rm -rf {}'.format(extracted_frame_dir), shell=True)
-
-    subprocess.call('mkdir {}'.format(extracted_frame_dir), shell=True)
-    for name in video_names:
-        video_full_name = name + suffix
-        video_path = os.path.join(video_data_dir, video_full_name)
-        if os.path.exists(video_path):
-            print(video_path)
-            frame_dir = os.path.join(extracted_frame_dir, name)
-            subprocess.call('mkdir {}'.format(frame_dir), shell=True)
-            # extrat frames from video and store in tmp
-            # subprocess.call('ffmpeg -i {} -vf "scale={}:{},fps={}" tmp/image_%04d.jpg'
-            #     .format(video_path, fps), shell=True)
-
-            subprocess.call('ffmpeg -i {} -vf "fps={}" {}/image_%04d.jpg'
-                .format(video_path, fps, frame_dir), shell=True)
 
 
 def get_config(config_path):

@@ -60,7 +60,7 @@ class KiMoReDataLoader(object):
         return list
 
     def get_video_length(self, videoname):
-        ''' Get the duration of videos in sec   (ref: https://stackoverflow.com/a/3844467)
+        ''' Get the duration of videos in seconds   (ref: https://stackoverflow.com/a/3844467)
 
         :param videoname: path to video
         :return: A integer: duration of video in seconds (round down)
@@ -147,8 +147,7 @@ class KiMoReDataLoader(object):
                     '''
                     # Note: we are not using the following code, because the npy file generated is TOO BIG (~1.6GB)!!
                     
-                    videodata = skvideo.io.vread(video_name, inputdict={"-r": fps})
-                        # TODO: skvideo.io fps config is NOT WORKING :(
+                    videodata = skvideo.io.vread(video_name, outputdict={'-r': fps})
                     max_num_frames = videodata.shape[0] if videodata.shape[0] > max_num_frames else max_num_frames
                     output = os.path.join(extracted_frame_subfolder, subject_ID)
                     np.save(output, videodata)

@@ -7,6 +7,7 @@ import functools
 import json
 import math
 import cv2
+import skvideo.io
 
 def pil_loader(path):
     # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
@@ -244,8 +245,19 @@ class CNN3D_Dataset(data.Dataset):
         input = self.inputs[index]
 
         # Load data
-        X = self._extract_frames_from_video(input)  # (input) spatial images
-        # y = torch.LongTensor([self.labels[index]])                                  # (labels) LongTensor are for int64 instead of FloatTensor
+        # X = self._extract_frames_from_video(input)  # (input) spatial images
+        X = skvideo.io.vread(input, outputdict={'-r': '1'})
+
+        X = torch.from_numpy(X)  # [ frames * height * weight * channels]
+        X = X.permute(3, 0, 1, 2)  # [channels * frames * height * weight]
+
+        # The needed padding is the difference between the
+        # n_frames and MAX_NUM_FRAMES with zeros.
+        p4d = (0, 0, 0, 0, 0, self.max_frames - X.shape[1])
+        X = F.pad(X, p4d, "constant", 0)
+        # padded_img = F.pad(image, [0, MAX_FRAMES - img.size(2), 0, MAX_FRAMES - img.size(1)])
+
+        # y = torch.LongTensor([self.labels[index]])               # (labels) LongTensor are for int64 instead of FloatTensor
         y = self.labels[index]                                      # (label) clinical score
         # print(X.shape)
         return X, y

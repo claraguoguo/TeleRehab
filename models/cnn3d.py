@@ -53,7 +53,7 @@ class CNN3D(nn.Module):
 
     def forward(self, x_3d):
         # Conv 1
-        x = self.conv1(x_3d)
+        x = self.conv1(x_3d.float())
         x = self.bn1(x)
         x = self.relu(x)
         x = self.drop(x)

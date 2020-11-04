@@ -9,6 +9,8 @@ from util import *
 import numpy as np
 import time
 from load_data import KiMoReDataLoader
+import pandas as pd
+from plot_train import *
 
 def evaluate(model, loader, criterion):
     """ Evaluate the network on the validation set.
@@ -22,7 +24,6 @@ def evaluate(model, loader, criterion):
          loss: A scalar for the average loss function over the validation set
      """
     total_loss = 0.0
-    total_err = 0.0
     total_epoch = 0
 
     for i, data in enumerate(loader, 0):
@@ -30,15 +31,12 @@ def evaluate(model, loader, criterion):
         # labels = normalize_label(labels)  # Convert labels to 0/1
         outputs = model(inputs)
         loss = criterion(outputs, labels.float())
-        corr = (outputs > 0.0).squeeze().long() != labels
-        total_err += int(corr.sum())
         total_loss += loss.item()
         total_epoch += len(labels)
 
-    err = float(total_err) / total_epoch
     loss = float(total_loss) / (i + 1)
 
-    return err, loss
+    return loss
 
 def main():
 
@@ -95,19 +93,18 @@ def main():
 
     ########################################################################
     # Set up some numpy arrays to store the training/test loss/accuracy
-    train_err = np.zeros(num_epochs)
     train_loss = np.zeros(num_epochs)
-    val_err = np.zeros(num_epochs)
     val_loss = np.zeros(num_epochs)
 
     ########################################################################
     # Train the network
     # Loop over the data iterator and sample a new batch of training data
     # Get the output from the network, and optimize our loss function.
+    print('Start training {}...'.format(model_name))
+
     start_time = time.time()
     for epoch in range(num_epochs):  # loop over the dataset multiple times
         total_train_loss = 0.0
-        total_train_err = 0.0
 
         total_epoch = 0
 
@@ -128,13 +125,13 @@ def main():
             # Calculate the statistics
             total_train_loss += loss.item()
             total_epoch += len(labels)
+            print('loss = {}'.format(loss.item()))
         #     TODO: add print statement
 
-        train_err[epoch] = float(total_train_err) / total_epoch
         train_loss[epoch] = float(total_train_loss) / (i+1)
-        val_err[epoch], val_loss[epoch] = evaluate(model, valid_loader, criterion)
+        val_loss[epoch] = evaluate(model, valid_loader, criterion)
 
-        print("Epoch {}: Train err: {}, Train loss: {} | Validation err: {}, Validation loss: {}".format(epoch + 1, train_err[epoch], train_loss[epoch], val_err[epoch], val_loss[epoch]))
+        print("Epoch {}: Train loss: {} | Validation loss: {}".format(epoch + 1, train_loss[epoch], val_loss[epoch]))
 
     print('Finished Training')
     end_time = time.time()
@@ -142,24 +139,19 @@ def main():
     print("Total time elapsed: {:.2f} seconds".format(elapsed_time))
 
     # Save the model to a file
-    # model_path = get_model_name(config)
-    # torch.save(model.state_dict(), model_path)
+    torch.save(model.state_dict(), model_name)
 
     # Write the train/test loss/err into CSV file for plotting later
     epochs = np.arange(1, num_epochs + 1)
+    model_path = model_name
 
-    # df = pd.DataFrame({"epoch": epochs, "train_err": train_err})
-    # df.to_csv("train_err_{}.csv".format(model_path), index=False)
-    #
-    # df = pd.DataFrame({"epoch": epochs, "train_loss": train_loss})
-    # df.to_csv("train_loss_{}.csv".format(model_path), index=False)
-    #
-    # df = pd.DataFrame({"epoch": epochs, "val_err": val_err})
-    # df.to_csv("val_err_{}.csv".format(model_path), index=False)
-    #
-    # df = pd.DataFrame({"epoch": epochs, "val_loss": val_loss})
-    # df.to_csv("val_loss_{}.csv".format(model_path), index=False)
+    df = pd.DataFrame({"epoch": epochs, "train_loss": train_loss})
+    df.to_csv("train_loss_{}.csv".format(model_path), index=False)
 
+    df = pd.DataFrame({"epoch": epochs, "val_loss": val_loss})
+    df.to_csv("val_loss_{}.csv".format(model_path), index=False)
+
+    generate_result_plots(model_name)
 
 if __name__ == '__main__':
     main()

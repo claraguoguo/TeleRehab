@@ -246,7 +246,10 @@ class CNN3D_Dataset(data.Dataset):
 
         # Load data
         # X = self._extract_frames_from_video(input)  # (input) spatial images
-        X = skvideo.io.vread(input, outputdict={'-r': '1'})
+        print('Change directory {}'.format(os.path.dirname(input)))
+        os.chdir(os.path.dirname(input))
+
+        X = skvideo.io.vread(os.path.basename(input), outputdict={'-r': '1'})
 
         X = torch.from_numpy(X)  # [ frames * height * weight * channels]
         X = X.permute(3, 0, 1, 2)  # [channels * frames * height * weight]

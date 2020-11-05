@@ -35,8 +35,10 @@ class KiMoReDataLoader(object):
         print('Extracting Clinical Scores...')
         rootdir = self.config.get('dataset', 'KIMORE_path')
 
-        list = []
+        print('Change directory {}'.format(rootdir))
+        os.chdir(rootdir)
 
+        list = []
         scoreDataList = []
         for subdir, dirs, files in os.walk(rootdir):
             for file in files:
@@ -87,6 +89,9 @@ class KiMoReDataLoader(object):
         self.df = self.df.assign(video_name=0)
         max_video_sec = -1
         list = []
+        print('Change directory {}'.format(video_data_dir))
+        os.chdir(video_data_dir)
+
         for subdir, dirs, files in os.walk(video_data_dir):
             for file in files:
                 video_name = os.path.join(subdir, file)
@@ -103,6 +108,7 @@ class KiMoReDataLoader(object):
 
                     # insert video name to df
                     self.df.loc[subject_ID, 'video_name'] = video_name
+                    print(video_name)
                     list.append(subject_ID)
 
         self.max_video_sec = max_video_sec
@@ -230,7 +236,7 @@ class KiMoReDataLoader(object):
         videos_list = self.get_video_names()
 
         # find any missing RGB videos
-        self.find_missing_data(scores_list, videos_list)
+        # self.find_missing_data(scores_list, videos_list)
 
         # TODO
         # remove missing data

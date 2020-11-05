@@ -41,6 +41,7 @@ def evaluate(model, loader, criterion):
 def main():
 
     extract_frame = True
+    use_local_df = True
     ########################################################################
     # load args and config
     args = parse_opts()
@@ -120,14 +121,17 @@ def main():
 
             # Forward pass, backward pass, and optimize
             outputs = model(inputs)
+            print('outout = {}'.format(outputs))
             loss = criterion(outputs, labels.float())
+            print('loss = {}'.format(loss.item()))
             loss.backward()
+            print('Finish backward')
             optimizer.step()
+            print('Finish step')
 
             # Calculate the statistics
             total_train_loss += loss.item()
             total_epoch += len(labels)
-            print('loss = {}'.format(loss.item()))
         #     TODO: add print statement
 
         train_loss[epoch] = float(total_train_loss) / (i+1)
@@ -153,7 +157,7 @@ def main():
     df = pd.DataFrame({"epoch": epochs, "val_loss": val_loss})
     df.to_csv("val_loss_{}.csv".format(model_path), index=False)
 
-    generate_result_plots(model_name)
+    generate_result_plots(model_name, config)
 
 if __name__ == '__main__':
     main()

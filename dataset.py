@@ -249,18 +249,18 @@ class CNN3D_Dataset(data.Dataset):
         print('Change directory {}'.format(os.path.dirname(input)))
         os.chdir(os.path.dirname(input))
 
-        X = skvideo.io.vread(os.path.basename(input), outputdict={'-r': '1'})
+        X = skvideo.io.vread(os.path.basename(input), outputdict={'-r': '1'})  # (frames, height, width, channel)
+        X_list = []
+        for i in range(X.shape[0]):
+            X_list.append( self.spatial_transform(X[i]))
 
-        X = torch.from_numpy(X)  # [ frames * height * weight * channels]
-        X = X.permute(3, 0, 1, 2)  # [channels * frames * height * weight]
+        X = torch.stack(X_list, dim=0)  # [frames * channels * height * weight]
+        X = X.permute(1, 0, 2, 3)  # [channels * frames * height * weight]
 
-        # The needed padding is the difference between the
-        # n_frames and MAX_NUM_FRAMES with zeros.
+        # The needed padding is the difference between the n_frames and MAX_NUM_FRAMES with zeros.
         p4d = (0, 0, 0, 0, 0, self.max_frames - X.shape[1])
         X = F.pad(X, p4d, "constant", 0)
-        # padded_img = F.pad(image, [0, MAX_FRAMES - img.size(2), 0, MAX_FRAMES - img.size(1)])
 
         # y = torch.LongTensor([self.labels[index]])               # (labels) LongTensor are for int64 instead of FloatTensor
         y = self.labels[index]                                      # (label) clinical score
-        # print(X.shape)
         return X, y

@@ -107,9 +107,11 @@ def main():
         total_train_loss = 0.0
 
         total_epoch = 0
-
+        counter = 0
         for i, data in enumerate(train_loader, 0):
             # Get the inputs
+            print('Runing datapoint: {}'.format(counter))
+            counter += 1
             inputs, labels = data
             # labels = normalize_label(labels) # Convert labels to 0/1
 

@@ -49,7 +49,7 @@ class KiMoReDataLoader(object):
                     data = pd.read_excel(filename)
                     df = pd.DataFrame(data)
                     scoreDataList.append(df)
-                    # print(filename)
+                    print(filename)
                     id = filename.split('/')[-4]
                     if id not in list:
                         list.append(id)

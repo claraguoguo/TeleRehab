@@ -84,7 +84,7 @@ def main():
     train_loader, valid_loader = get_data_loader(train_list, test_list, train_label, test_label, model_name, max_video_sec, config)
     ########################################################################
     # Define a Convolutional Neural Network, defined in models
-    model = generate_model(model_name, config)
+    model = generate_model(model_name, max_video_sec, config)
 
     ########################################################################
     # Define the Loss function and optimizer

@@ -10,6 +10,10 @@ from dataset import CNN3D_Dataset
 import configparser
 
 
+def change_dir(new_dir):
+    print('Change directory to{}'.format(new_dir))
+    os.chdir(new_dir)
+
 def get_config(config_path):
     if not os.path.exists(config_path):
         raise FileExistsError('config file does not exist')

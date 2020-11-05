@@ -47,11 +47,6 @@ def generate_result_plots(model_name, config):
     # train_err_data, val_err_data = load_csv('err', model_path)
     train_loss_data, val_loss_data = load_csv('loss', model_path)
 
-    COLAB_path = config.getint('dataset', 'COLAB_path')
-
-    print('Change directory {}'.format(COLAB_path))
-    os.chdir(COLAB_path)
-
     # Print the final loss/error for the train/validation set from the CSV file
     # print("Final training error: {0:.3f}% | Final validation error: {1:.3f}%".format(train_err_data["train_err"].iloc[-1]*100, val_err_data["val_err"].iloc[-1]*100))
     print("Final training loss: {0:.5f} | Final validation loss: {1:.5f}".format(train_loss_data["train_loss"].iloc[-1],

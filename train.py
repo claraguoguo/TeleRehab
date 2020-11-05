@@ -40,7 +40,6 @@ def evaluate(model, loader, criterion):
 
 def main():
 
-    extract_frame = True
     use_local_df = True
     ########################################################################
     # load args and config
@@ -49,7 +48,15 @@ def main():
 
     ########################################################################
     # Extract Frames from videos
-    if extract_frame:
+    if use_local_df:
+        print('Using local df')
+        df_path = config.get('dataset', 'df_path')
+        df_name = config.get('dataset', 'df_name')
+        change_dir(df_path)
+        df = pd.read_pickle(df_name)
+        # TODO: Fix max_video_sec to not be hard-coded
+        max_video_sec = 60
+    else:
         # extract_frames_from_video(config)
         data_loader = KiMoReDataLoader(config)
         data_loader.load_data()
@@ -145,17 +152,20 @@ def main():
     print("Total time elapsed: {:.2f} seconds".format(elapsed_time))
 
     # Save the model to a file
+    model_path = config.get(model_name, 'model_path')
+    change_dir(model_path)
     torch.save(model.state_dict(), model_name)
 
     # Write the train/test loss/err into CSV file for plotting later
     epochs = np.arange(1, num_epochs + 1)
-    model_path = model_name
 
+    csv_path = config.get('dataset', 'csv_path')
+    change_dir(csv_path)
     df = pd.DataFrame({"epoch": epochs, "train_loss": train_loss})
-    df.to_csv("train_loss_{}.csv".format(model_path), index=False)
+    df.to_csv("train_loss_{}.csv".format(model_name), index=False)
 
     df = pd.DataFrame({"epoch": epochs, "val_loss": val_loss})
-    df.to_csv("val_loss_{}.csv".format(model_path), index=False)
+    df.to_csv("val_loss_{}.csv".format(model_name), index=False)
 
     generate_result_plots(model_name, config)
 

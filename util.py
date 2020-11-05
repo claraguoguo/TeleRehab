@@ -112,8 +112,8 @@ def get_data_loader(train_list, test_list, train_label, test_label, model_name, 
     valid_set = CNN3D_Dataset(video_path, test_list, test_label, max_frames, spatial_transform=spatial_transform,
                  temporal_transform=temporal_transform)
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
-                                              shuffle=False, num_workers=n_threads, pin_memory=True)
+                                              shuffle=False, num_workers=n_threads, pin_memory=True, drop_last=True),
     valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size,
-                                              shuffle=False, num_workers=n_threads, pin_memory=True)
+                                              shuffle=False, num_workers=n_threads, pin_memory=True, drop_last=True)
 
     return train_loader, valid_loader

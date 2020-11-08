@@ -41,7 +41,7 @@ class CNN3D_Dataset(data.Dataset):
         X = skvideo.io.vread(os.path.basename(input), outputdict={'-r': self.fps})  # (frames, height, width, channel)
         X_list = []
         for i in range(X.shape[0]):
-            X_list.append( self.spatial_transform(X[i]))
+            X_list.append(self.spatial_transform(X[i]))
 
         X = torch.stack(X_list, dim=0)  # [frames * channels * height * weight]
         X = X.permute(1, 0, 2, 3)  # [channels * frames * height * weight]

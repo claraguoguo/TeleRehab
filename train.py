@@ -10,7 +10,6 @@ import numpy as np
 import time
 from load_data import KiMoReDataLoader
 import pandas as pd
-import subprocess
 from plot_train import *
 
 def evaluate(model, loader, criterion):

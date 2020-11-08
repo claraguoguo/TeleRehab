@@ -10,6 +10,7 @@ import numpy as np
 import time
 from load_data import KiMoReDataLoader
 import pandas as pd
+import subprocess
 from plot_train import *
 
 def evaluate(model, loader, criterion):
@@ -85,6 +86,10 @@ def main():
     all_X_list = df['video_name']                       # all video file names
     all_y_list = df['clinical TS Ex#1']                  # all video labels
 
+    exercise_type = config.get('dataset', 'exercise_type')
+
+    print('Total number of samples {} for {}'.format(all_X_list.shape[0], exercise_type))
+
     # train, test split
     train_list, test_list, train_label, test_label = train_test_split(all_X_list, all_y_list, test_size=test_size, random_state=seed)
     
@@ -139,7 +144,6 @@ def main():
             # Calculate the statistics
             total_train_loss += loss.item()
             total_epoch += len(labels)
-        #     TODO: add print statement
 
         train_loss[epoch] = float(total_train_loss) / (i+1)
         val_loss[epoch] = evaluate(model, valid_loader, criterion)
@@ -151,16 +155,16 @@ def main():
     elapsed_time = end_time - start_time
     print("Total time elapsed: {:.2f} seconds".format(elapsed_time))
 
-    # Save the model to a file
-    model_path = config.get(model_name, 'model_path')
-    change_dir(model_path)
+    # Change to ouput directory and create a folder with timestamp
+    output_path = config.get('dataset', 'result_output_path')
+    change_dir(output_path)
+
+    # Save the model
     torch.save(model.state_dict(), model_name)
 
     # Write the train/test loss/err into CSV file for plotting later
     epochs = np.arange(1, num_epochs + 1)
 
-    csv_path = config.get('dataset', 'csv_path')
-    change_dir(csv_path)
     df = pd.DataFrame({"epoch": epochs, "train_loss": train_loss})
     df.to_csv("train_loss_{}.csv".format(model_name), index=False)
 

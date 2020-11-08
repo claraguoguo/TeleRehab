@@ -89,10 +89,10 @@ def get_data_loader(train_list, test_list, train_label, test_label, model_name, 
     # opt.sample_duration = len(os.listdir("tmp"))
     # TODO: Normalize Image (center / min-max) & Map rgb --> [0, 1]
     spatial_transform = transforms.Compose([
-                            transforms.ToPILImage(),
-                            transforms.Resize([frame_size, frame_size]),
-                            transforms.ToTensor(),
-                            transforms.Normalize(mean=mean, std=std)])
+        transforms.ToPILImage(),
+        transforms.Resize([frame_size, frame_size]),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=mean, std=std)])
 
     ## temporal_transform = LoopPadding(opt.sample_duration)
     temporal_transform = None
@@ -104,9 +104,12 @@ def get_data_loader(train_list, test_list, train_label, test_label, model_name, 
                               temporal_transform=temporal_transform)
     valid_set = CNN3D_Dataset(config, test_list, test_label, max_frames, spatial_transform=spatial_transform,
                               temporal_transform=temporal_transform)
+    # train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
+    #                                            shuffle=False, num_workers=n_threads, pin_memory=True, drop_last=True),
+    # valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size,
+    #                                            shuffle=False, num_workers=n_threads, pin_memory=True, drop_last=True)
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
-                                               shuffle=False, num_workers=n_threads, pin_memory=True, drop_last=True),
+                                              shuffle=False, num_workers=n_threads, pin_memory=True)
     valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size,
-                                               shuffle=False, num_workers=n_threads, pin_memory=True, drop_last=True)
-
+                                              shuffle=False, num_workers=n_threads, pin_memory=True)
     return train_loader, valid_loader

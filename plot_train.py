@@ -22,7 +22,7 @@ def load_csv(type, model_name):
     return train_data, val_data
 
 
-def plot_graph(model_name, train_data, val_data, config):
+def plot_graph(model_name, type, train_data, val_data, config):
     """
     Plot the training loss/error curve given the data from CSV
     """
@@ -32,22 +32,24 @@ def plot_graph(model_name, train_data, val_data, config):
     valid_loss = val_data["val_loss"].iloc[-1]
 
     plt.figure()
-    plt.title("Loss over training epochs \n {}_lr{}_epoch{}_bs{}_val{}".format(model_name, lr, epoch, bs, valid_loss))
-    plt.plot(train_data["epoch"], train_data["train_Loss"], label="Train")
-    plt.plot(val_data["epoch"], val_data["val_Loss"], label="Validation")
+    plt.title("{} over training epochs \n {}_lr{}_epoch{}_bs{}_val{}".format(
+        type, model_name, lr, epoch, bs, valid_loss))
+    plt.plot(train_data["epoch"], train_data["train_{}".format(type)], label="Train")
+    plt.plot(val_data["epoch"], val_data["val_{}".format(type)], label="Validation")
     plt.xlabel("Epoch")
-    plt.ylabel("Loss")
+    plt.ylabel(type)
     plt.legend(loc='best')
-    plt.savefig("{}_lr{}_epoch{}_bs{}_val{}.png".format(model_name, lr, epoch, bs, valid_loss))
+    plt.savefig("{}_{}_lr{}_epoch{}_bs{}_val{}.png".format(type, model_name, lr, epoch, bs, valid_loss))
     return
 
 
 def generate_result_plots(model_name, config):
     ########################################################################
     # Loads the configuration for the experiment from the configuration file
+    type = 'loss'
     # Load the CSV files according to the current config
     # train_err_data, val_err_data = load_csv('err', model_path)
-    train_loss_data, val_loss_data = load_csv('loss', model_name)
+    train_loss_data, val_loss_data = load_csv(type, model_name)
 
     # Print the final loss/error for the train/validation set from the CSV file
     # print("Final training error: {0:.3f}% | Final validation error: {1:.3f}%".format(train_err_data["train_err"].iloc[-1]*100, val_err_data["val_err"].iloc[-1]*100))
@@ -56,4 +58,4 @@ def generate_result_plots(model_name, config):
 
     # Plot a train vs test err/loss graph for this hyperparameter
     # plot_graph(model_path, "err", train_err_data, val_err_data)
-    plot_graph(model_name, train_loss_data, val_loss_data, config)
+    plot_graph(model_name, type, train_loss_data, val_loss_data, config)

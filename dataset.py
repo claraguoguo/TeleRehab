@@ -14,14 +14,16 @@ import skvideo.io
 # for 3DCNN
 class CNN3D_Dataset(data.Dataset):
     "Characterizes a dataset for PyTorch"
-    def __init__(self, data_path, inputs, labels, max_frames, spatial_transform=None, temporal_transform=None):
+    def __init__(self, config, inputs, labels, max_frames, spatial_transform=None, temporal_transform=None):
         "Initialization"
-        self.data_path = data_path
+        self.config = config
         self.labels = labels
         self.inputs = inputs
         self.spatial_transform = spatial_transform
         self.temporal_transform = temporal_transform
         self.max_frames = max_frames
+        # Note: fps MUST be s String, b/c skvideo.io.vread is expecting a string input.
+        self.fps = config.get('dataset', 'fps')
 
     def __len__(self):
         "Denotes the total number of samples"
@@ -36,7 +38,7 @@ class CNN3D_Dataset(data.Dataset):
         print('Change directory {}'.format(os.path.dirname(input)))
         os.chdir(os.path.dirname(input))
 
-        X = skvideo.io.vread(os.path.basename(input), outputdict={'-r': '1'})  # (frames, height, width, channel)
+        X = skvideo.io.vread(os.path.basename(input), outputdict={'-r': self.fps})  # (frames, height, width, channel)
         X_list = []
         for i in range(X.shape[0]):
             X_list.append( self.spatial_transform(X[i]))

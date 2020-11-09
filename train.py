@@ -133,7 +133,7 @@ def main():
             # Forward pass, backward pass, and optimize
             outputs = model(inputs)
 
-            print('Epoch: {}, Batch: {}, outputs: {}, labels: {}'.format(epoch, counter, outputs.item(), labels))
+            print(f'Epoch: {epoch}, Batch: {counter}, outputs: {outputs.T}, labels: {labels.T}')
             counter += 1
 
             loss = criterion(outputs, labels.float())

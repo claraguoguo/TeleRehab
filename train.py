@@ -32,6 +32,7 @@ def evaluate(model, loader, criterion):
         outputs = model(inputs)
         loss = criterion(outputs, labels.float())
         total_loss += loss.item()
+        print('Validation loss = {}'.format(loss.item()))
         total_epoch += len(labels)
 
     loss = float(total_loss) / (i + 1)
@@ -80,6 +81,7 @@ def main():
     optimizer = config.get(model_name, 'optimizer')
     learning_rate = config.getfloat(model_name, 'lr')
     test_size = config.getfloat('dataset', 'test_size')
+    bs = config.getint(model_name, 'batch_size')
     ########################################################################
     # list all data files
     all_X_list = df['video_name']                       # all video file names
@@ -122,8 +124,6 @@ def main():
         counter = 0
         for i, data in enumerate(train_loader, 0):
             # Get the inputs
-            print('Runing datapoint: {}'.format(counter))
-            counter += 1
             inputs, labels = data
             # labels = normalize_label(labels) # Convert labels to 0/1
 
@@ -132,13 +132,14 @@ def main():
 
             # Forward pass, backward pass, and optimize
             outputs = model(inputs)
-            print('outout = {}'.format(outputs))
+
+            print('Epoch: {}, Batch: {}, outputs: {}, labels: {}'.format(epoch, counter, outputs.item(), labels))
+            counter += 1
+
             loss = criterion(outputs, labels.float())
-            print('loss = {}'.format(loss.item()))
+            print('Training loss = {}'.format(loss.item()))
             loss.backward()
-            print('Finish backward')
             optimizer.step()
-            print('Finish step')
 
             # Calculate the statistics
             total_train_loss += loss.item()
@@ -165,10 +166,10 @@ def main():
     epochs = np.arange(1, num_epochs + 1)
 
     df = pd.DataFrame({"epoch": epochs, "train_loss": train_loss})
-    df.to_csv("train_loss_{}.csv".format(model_name), index=False)
+    df.to_csv("train_loss_{}_lr{}_epoch{}_bs{}.csv".format(model_name, learning_rate, num_epochs, bs), index=False)
 
     df = pd.DataFrame({"epoch": epochs, "val_loss": val_loss})
-    df.to_csv("val_loss_{}.csv".format(model_name), index=False)
+    df.to_csv("val_loss_{}_lr{}_epoch{}_bs{}.csv".format(model_name, learning_rate, num_epochs, bs), index=False)
 
     generate_result_plots(model_name, config)
 

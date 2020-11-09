@@ -7,12 +7,6 @@
 import os
 import pandas as pd
 import subprocess
-# import ffmpeg
-import numpy as np
-# import cv2
-# import math
-# import skvideo.io
-from numpy import savetxt
 
 class KiMoReDataLoader(object):
     def __init__(self, config):
@@ -113,95 +107,6 @@ class KiMoReDataLoader(object):
 
         self.max_video_sec = max_video_sec
         return list
-
-
-
-    def extract_frames_from_video(self):
-        # Extract Frames from videos
-        extracted_frame_root = self.config.get('dataset', 'extracted_frame_path')
-        exercise_type = self.config.get('dataset', 'exercise_type')
-        extracted_frame_subfolder = os.path.join(extracted_frame_root, exercise_type)
-
-        video_data_dir = self.config.get('dataset', 'KIMORE_RGB_path')
-
-        # Note: fps MUST be s String, b/c kvideo.io.vread is expecting a string input.
-        fps = self.config.get('dataset', 'fps')
-
-        print('Extracting Frames for ' + exercise_type)
-        if not os.path.exists(extracted_frame_root):
-            subprocess.call('mkdir {}'.format(extracted_frame_root), shell=True)
-
-        if os.path.exists(extracted_frame_subfolder):
-            subprocess.call('rm -rf {}'.format(extracted_frame_subfolder), shell=True)
-        counter = 0
-        list = []
-        subprocess.call('mkdir {}'.format(extracted_frame_subfolder), shell=True)
-        max_num_frames = -1
-        for subdir, dirs, files in os.walk(video_data_dir):
-            for file in files:
-                video_name = os.path.join(subdir, file)
-                if exercise_type in video_name and video_name.endswith(".mp4"):
-                    subject_ID = subdir.split('/')[-3]
-                    if '_ID' not in subject_ID:
-                        print('Wrong subject_ID type!')
-                        assert False
-
-                    print(video_name)
-                    counter += 1
-                    if subject_ID not in list:
-                        list.append(subject_ID)
-                    '''
-                    # Note: we are not using the following code, because the npy file generated is TOO BIG (~1.6GB)!!
-                    
-                    videodata = skvideo.io.vread(video_name, outputdict={'-r': fps})
-                    max_num_frames = videodata.shape[0] if videodata.shape[0] > max_num_frames else max_num_frames
-                    output = os.path.join(extracted_frame_subfolder, subject_ID)
-                    np.save(output, videodata)
-                    '''
-        print(counter)
-        return list
-        # count = 0
-        # cap = cv.VideoCapture(filename)  # capturing the video from the given path
-        # frameRate = cap.get(5)  # frame rate
-        # outputPath = os.path.join(extracted_frame_subfolder, subject_ID)
-        # while (cap.isOpened()):
-        #     frameId = cap.get(1)  # current frame number
-        #     ret, frame = cap.read()
-        #     if (ret != True):
-        #         break
-        #     if (frameId % math.floor(frameRate) == 0):
-        #         frameName = "frame%d.jpg" % count;
-        #         count += 1
-        #         cv.imwrite(os.path.join(outputPath, frameName), frame)
-        # cap.release()
-        # print("Done!")
-
-        # out, _ = (
-        #     ffmpeg
-        #         .input(filename)
-        #         .filter('fps', fps=fps, round='up')
-        #         .output('pipe:', format='rawvideo', pix_fmt='rgb24')
-        #         .run(capture_stdout=True)
-        # )
-        # video = (
-        #     np
-        #         .frombuffer(out, np.uint8)
-        # )
-
-
-        # for name in video_names:
-        #     video_full_name = name + suffix
-        #     video_path = os.path.join(video_data_dir, video_full_name)
-        #     if os.path.exists(video_path):
-        #         print(video_path)
-        #         frame_dir = os.path.join(extracted_frame_dir, name)
-        #         subprocess.call('mkdir {}'.format(frame_dir), shell=True)
-        #         # extrat frames from video and store in tmp
-        #         # subprocess.call('ffmpeg -i {} -vf "scale={}:{},fps={}" tmp/image_%04d.jpg'
-        #         #     .format(video_path, fps), shell=True)
-        #
-        #         subprocess.call('ffmpeg -i {} -vf "fps={}" {}/image_%04d.jpg'
-        #                         .format(video_path, fps, frame_dir), shell=True)
 
     def find_missing_data(self, scores, videos):
         # Extract Frames from videos

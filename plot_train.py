@@ -4,7 +4,7 @@ import torch
 from util import *
 
 
-def load_csv(type, model_name):
+def load_csv(type, model_name, config):
     """
     Given the type ('err'/'loss'), loads the appropriate CSV files to plot
 
@@ -12,9 +12,15 @@ def load_csv(type, model_name):
     :param config: configuration dictionary
     :return: Numpy arrays for the train and test value
     """
+
+    epoch = config.getint(model_name, 'epoch')
+    lr = config.getfloat(model_name, 'lr')
+    bs = config.getint(model_name, 'batch_size')
+
+
     model_path = model_name
-    train_file = 'train_{}_{}.csv'.format(type, model_path)
-    val_file = 'val_{}_{}.csv'.format(type, model_path)
+    train_file = 'train_{}_{}_lr{}_epoch{}_bs{}.csv'.format(type, model_path, lr, epoch, bs)
+    val_file = 'val_{}_{}_lr{}_epoch{}_bs{}.csv'.format(type, model_path, lr, epoch, bs)
 
     train_data = pd.read_csv(train_file)
     val_data = pd.read_csv(val_file)
@@ -49,7 +55,7 @@ def generate_result_plots(model_name, config):
     type = 'loss'
     # Load the CSV files according to the current config
     # train_err_data, val_err_data = load_csv('err', model_path)
-    train_loss_data, val_loss_data = load_csv(type, model_name)
+    train_loss_data, val_loss_data = load_csv(type, model_name, config)
 
     # Print the final loss/error for the train/validation set from the CSV file
     # print("Final training error: {0:.3f}% | Final validation error: {1:.3f}%".format(train_err_data["train_err"].iloc[-1]*100, val_err_data["val_err"].iloc[-1]*100))

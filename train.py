@@ -87,12 +87,15 @@ def main():
     all_X_list = df['video_name']                       # all video file names
     all_y_list = df['clinical TS Ex#1']                  # all video labels
 
+    # transform the labels by taking Log10
+    log_all_y_list = np.log10(all_y_list)
+
     exercise_type = config.get('dataset', 'exercise_type')
 
     print('Total number of samples {} for {}'.format(all_X_list.shape[0], exercise_type))
 
     # train, test split
-    train_list, test_list, train_label, test_label = train_test_split(all_X_list, all_y_list, test_size=test_size, random_state=seed)
+    train_list, test_list, train_label, test_label = train_test_split(all_X_list, log_all_y_list, test_size=test_size, random_state=seed)
     
     # Obtain the PyTorch data loader objects to load batches of the datasets
     train_loader, valid_loader = get_data_loader(train_list, test_list, train_label, test_label, model_name, max_video_sec, config)

@@ -1,12 +1,7 @@
 import torch
 import torch.utils.data as data
 import torch.nn.functional as F
-from PIL import Image
 import os
-import functools
-import json
-import math
-import cv2
 import skvideo.io
 
 
@@ -35,7 +30,6 @@ class CNN3D_Dataset(data.Dataset):
         input = self.inputs[index]
 
         # Load data
-        print('Change directory {}'.format(os.path.dirname(input)))
         os.chdir(os.path.dirname(input))
 
         X = skvideo.io.vread(os.path.basename(input), outputdict={'-r': self.fps})  # (frames, height, width, channel)

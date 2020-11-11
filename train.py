@@ -79,6 +79,7 @@ def main():
 
     num_epochs = config.getint(model_name, 'epoch')
     optimizer = config.get(model_name, 'optimizer')
+    loss_fn = config.get(model_name, 'loss')
     learning_rate = config.getfloat(model_name, 'lr')
     test_size = config.getfloat('dataset', 'test_size')
     bs = config.getint(model_name, 'batch_size')
@@ -105,7 +106,12 @@ def main():
 
     ########################################################################
     # Define the Loss function and optimizer
-    criterion = nn.MSELoss()
+    if loss_fn == 'l1':
+        print('Loss function: nn.L1Loss()')
+        criterion = nn.L1Loss()
+    else: 
+        print('Loss function: nn.MSELoss()')
+        criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-4)
 
     ########################################################################

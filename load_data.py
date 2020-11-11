@@ -29,7 +29,6 @@ class KiMoReDataLoader(object):
         print('Extracting Clinical Scores...')
         rootdir = self.config.get('dataset', 'KIMORE_path')
 
-        print('Change directory {}'.format(rootdir))
         os.chdir(rootdir)
 
         list = []
@@ -84,7 +83,6 @@ class KiMoReDataLoader(object):
         self.df = self.df.assign(video_name=0)
         max_video_sec = -1
         list = []
-        print('Change directory {}'.format(video_data_dir))
         os.chdir(video_data_dir)
 
         for subdir, dirs, files in os.walk(video_data_dir):

@@ -19,8 +19,8 @@ def load_csv(type, model_name, config):
     loss_fn = config.get(model_name, 'loss')
 
     model_path = model_name
-    train_file = 'train_{}_{}_{}_lr{}_epoch{}_bs{}.csv'.format(loss_fn, type, model_path, lr, epoch, bs)
-    val_file = 'val_{}_{}_{}_lr{}_epoch{}_bs{}.csv'.format(loss_fn, type, model_path, lr, epoch, bs)
+    train_file = 'train_{}_{}_{}_lr{}_epoch{}_bs{}.csv'.format(model_path, type, loss_fn, lr, epoch, bs)
+    val_file = 'val_{}_{}_{}_lr{}_epoch{}_bs{}.csv'.format(model_path, type, loss_fn, lr, epoch, bs)
 
     train_data = pd.read_csv(train_file)
     val_data = pd.read_csv(val_file)
@@ -46,7 +46,7 @@ def plot_graph(model_name, type, train_data, val_data, config):
     plt.xlabel("Epoch")
     plt.ylabel(loss_fn + type)
     plt.legend(loc='best')
-    plt.savefig("{}_{}_{}_lr{}_epoch{}_bs{}_val{}.png".format(loss_fn, type, model_name, lr, epoch, bs, valid_loss))
+    plt.savefig("{}_{}_{}_lr{}_epoch{}_bs{}_val{}.png".format(model_name, loss_fn, type, lr, epoch, bs, valid_loss))
     return
 
 

@@ -175,10 +175,10 @@ def main():
     epochs = np.arange(1, num_epochs + 1)
 
     df = pd.DataFrame({"epoch": epochs, "train_loss": train_loss})
-    df.to_csv("train_loss_{}_lr{}_epoch{}_bs{}.csv".format(model_name, learning_rate, num_epochs, bs), index=False)
+    df.to_csv("train_{}_loss_{}_lr{}_epoch{}_bs{}.csv".format(model_name, loss_fn, learning_rate, num_epochs, bs), index=False)
 
     df = pd.DataFrame({"epoch": epochs, "val_loss": val_loss})
-    df.to_csv("val_loss_{}_lr{}_epoch{}_bs{}.csv".format(model_name, learning_rate, num_epochs, bs), index=False)
+    df.to_csv("val_{}_loss_{}_lr{}_epoch{}_bs{}.csv".format(model_name, loss_fn, learning_rate, num_epochs, bs), index=False)
 
     generate_result_plots(model_name, config)
 

@@ -16,11 +16,11 @@ def load_csv(type, model_name, config):
     epoch = config.getint(model_name, 'epoch')
     lr = config.getfloat(model_name, 'lr')
     bs = config.getint(model_name, 'batch_size')
-
+    loss_fn = config.get(model_name, 'loss')
 
     model_path = model_name
-    train_file = 'train_{}_{}_lr{}_epoch{}_bs{}.csv'.format(type, model_path, lr, epoch, bs)
-    val_file = 'val_{}_{}_lr{}_epoch{}_bs{}.csv'.format(type, model_path, lr, epoch, bs)
+    train_file = 'train_{}_{}_{}_lr{}_epoch{}_bs{}.csv'.format(loss_fn, type, model_path, lr, epoch, bs)
+    val_file = 'val_{}_{}_{}_lr{}_epoch{}_bs{}.csv'.format(loss_fn, type, model_path, lr, epoch, bs)
 
     train_data = pd.read_csv(train_file)
     val_data = pd.read_csv(val_file)
@@ -36,6 +36,7 @@ def plot_graph(model_name, type, train_data, val_data, config):
     lr = config.getfloat(model_name, 'lr')
     bs = config.getint(model_name, 'batch_size')
     valid_loss = val_data["val_loss"].iloc[-1]
+    loss_fn = config.get(model_name, 'loss')
 
     plt.figure()
     plt.title("{} over training epochs \n {}_lr{}_epoch{}_bs{}_val{}".format(
@@ -43,9 +44,9 @@ def plot_graph(model_name, type, train_data, val_data, config):
     plt.plot(train_data["epoch"], train_data["train_{}".format(type)], label="Train")
     plt.plot(val_data["epoch"], val_data["val_{}".format(type)], label="Validation")
     plt.xlabel("Epoch")
-    plt.ylabel(type)
+    plt.ylabel(loss_fn + type)
     plt.legend(loc='best')
-    plt.savefig("{}_{}_lr{}_epoch{}_bs{}_val{}.png".format(type, model_name, lr, epoch, bs, valid_loss))
+    plt.savefig("{}_{}_{}_lr{}_epoch{}_bs{}_val{}.png".format(loss_fn, type, model_name, lr, epoch, bs, valid_loss))
     return
 
 

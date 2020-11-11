@@ -78,6 +78,7 @@ class KiMoReDataLoader(object):
 
         exercise_type = self.config.get('dataset', 'exercise_type')
         video_data_dir = self.config.get('dataset', 'KIMORE_RGB_path')
+        dataset_filter = self.config.get('dataset', 'dataset_filter')
 
         # Add a new column "video_name" to df
         self.df = self.df.assign(video_name=0)
@@ -89,7 +90,7 @@ class KiMoReDataLoader(object):
         for subdir, dirs, files in os.walk(video_data_dir):
             for file in files:
                 video_name = os.path.join(subdir, file)
-                if exercise_type in video_name and video_name.endswith(".mp4"):
+                if dataset_filter in video_name and exercise_type in video_name and video_name.endswith(".mp4"):
 
                     # update max_video_length
                     duration = self.get_video_length(video_name)

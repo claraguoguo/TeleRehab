@@ -145,6 +145,9 @@ class KiMoReDataLoader(object):
         # TODO
         # remove missing data
         self.df = self.df[self.df['video_name'] != 0]
-        self.df.to_pickle('dataframe')
+        
+        dataset_filter = self.config.get('dataset', 'dataset_filter')
+        df_name = dataset_filter + '_df'
+        self.df.to_pickle(df_name)
 
         print('Finished loading Dataset')

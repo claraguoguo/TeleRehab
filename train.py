@@ -41,7 +41,7 @@ def evaluate(model, loader, criterion):
 
 def main():
 
-    use_local_df = True
+    use_local_df = False
     ########################################################################
     # load args and config
     args = parse_opts()
@@ -52,8 +52,9 @@ def main():
     if use_local_df:
         print('Using local df')
         df_path = config.get('dataset', 'df_path')
-        df_name = config.get('dataset', 'df_name')
         change_dir(df_path)
+        dataset_filter = config.get('dataset', 'dataset_filter')
+        df_name = dataset_filter + '_df'
         df = pd.read_pickle(df_name)
         # TODO: Fix max_video_sec to not be hard-coded
         max_video_sec = 60
@@ -62,7 +63,8 @@ def main():
         data_loader = KiMoReDataLoader(config)
         data_loader.load_data()
         df = data_loader.df
-        max_video_sec = data_loader.max_video_sec
+        fps = config.getint('dataset', 'fps')
+        max_video_sec = data_loader.max_video_sec * fps
 
     ########################################################################
     # Fixed PyTorch random seed for reproducible result
@@ -173,12 +175,13 @@ def main():
 
     # Write the train/test loss/err into CSV file for plotting later
     epochs = np.arange(1, num_epochs + 1)
+    fps = config.get('dataset', 'fps')
 
     df = pd.DataFrame({"epoch": epochs, "train_loss": train_loss})
-    df.to_csv("train_{}_loss_{}_lr{}_epoch{}_bs{}.csv".format(model_name, loss_fn, learning_rate, num_epochs, bs), index=False)
+    df.to_csv("train_{}_loss_{}_lr{}_epoch{}_bs{}_fps{}.csv".format(model_name, loss_fn, learning_rate, num_epochs, bs, fps), index=False)
 
     df = pd.DataFrame({"epoch": epochs, "val_loss": val_loss})
-    df.to_csv("val_{}_loss_{}_lr{}_epoch{}_bs{}.csv".format(model_name, loss_fn, learning_rate, num_epochs, bs), index=False)
+    df.to_csv("val_{}_loss_{}_lr{}_epoch{}_bs{}_fps{}.csv".format(model_name, loss_fn, learning_rate, num_epochs, bs, fps), index=False)
 
     generate_result_plots(model_name, config)
 

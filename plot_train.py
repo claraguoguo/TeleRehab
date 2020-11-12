@@ -17,10 +17,11 @@ def load_csv(type, model_name, config):
     lr = config.getfloat(model_name, 'lr')
     bs = config.getint(model_name, 'batch_size')
     loss_fn = config.get(model_name, 'loss')
+    fps = config.get('dataset', 'fps')
 
     model_path = model_name
-    train_file = 'train_{}_{}_{}_lr{}_epoch{}_bs{}.csv'.format(model_path, type, loss_fn, lr, epoch, bs)
-    val_file = 'val_{}_{}_{}_lr{}_epoch{}_bs{}.csv'.format(model_path, type, loss_fn, lr, epoch, bs)
+    train_file = 'train_{}_{}_{}_lr{}_epoch{}_bs{}_fps{}.csv'.format(model_path, type, loss_fn, lr, epoch, bs, fps)
+    val_file = 'val_{}_{}_{}_lr{}_epoch{}_bs{}_fps{}.csv'.format(model_path, type, loss_fn, lr, epoch, bs, fps)
 
     train_data = pd.read_csv(train_file)
     val_data = pd.read_csv(val_file)
@@ -37,16 +38,17 @@ def plot_graph(model_name, type, train_data, val_data, config):
     bs = config.getint(model_name, 'batch_size')
     valid_loss = val_data["val_loss"].iloc[-1]
     loss_fn = config.get(model_name, 'loss')
+    fps = config.get('dataset', 'fps')
 
     plt.figure()
-    plt.title("{} over training epochs \n {}_lr{}_epoch{}_bs{}_val{}".format(
-        type, model_name, lr, epoch, bs, valid_loss))
+    plt.title("{} over training epochs \n {}_lr{}_epoch{}_bs{}_fps{}_val{}".format(
+        type, model_name, lr, epoch, bs, fps, valid_loss))
     plt.plot(train_data["epoch"], train_data["train_{}".format(type)], label="Train")
     plt.plot(val_data["epoch"], val_data["val_{}".format(type)], label="Validation")
     plt.xlabel("Epoch")
     plt.ylabel(loss_fn + type)
     plt.legend(loc='best')
-    plt.savefig("{}_{}_{}_lr{}_epoch{}_bs{}_val{}.png".format(model_name, loss_fn, type, lr, epoch, bs, valid_loss))
+    plt.savefig("{}_{}_{}_lr{}_epoch{}_bs{}_fps{}_val{}.png".format(model_name, loss_fn, type, lr, epoch, bs, fps, valid_loss))
     return
 
 

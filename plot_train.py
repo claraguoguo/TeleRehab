@@ -29,7 +29,7 @@ def load_csv(type, model_name, config):
     return train_data, val_data
 
 
-def plot_graph(model_name, type, train_data, val_data, config):
+def plot_graph(model_name, type, train_data, val_data, test_loss, config):
     """
     Plot the training loss/error curve given the data from CSV
     """
@@ -41,18 +41,18 @@ def plot_graph(model_name, type, train_data, val_data, config):
     fps = config.get('dataset', 'fps')
 
     plt.figure()
-    plt.title("{} over training epochs \n {}_lr{}_epoch{}_bs{}_fps{}_val{}".format(
-        type, model_name, lr, epoch, bs, fps, valid_loss))
+    plt.title("{} over training epochs \n {}_lr{}_epoch{}_bs{}_fps{}_test{}".format(
+        type, model_name, lr, epoch, bs, fps, test_loss))
     plt.plot(train_data["epoch"], train_data["train_{}".format(type)], label="Train")
     plt.plot(val_data["epoch"], val_data["val_{}".format(type)], label="Validation")
     plt.xlabel("Epoch")
     plt.ylabel(loss_fn + type)
     plt.legend(loc='best')
-    plt.savefig("{}_{}_{}_lr{}_epoch{}_bs{}_fps{}_val{}.png".format(model_name, loss_fn, type, lr, epoch, bs, fps, valid_loss))
+    plt.savefig("{}_{}_{}_lr{}_epoch{}_bs{}_fps{}_test{}.png".format(model_name, loss_fn, type, lr, epoch, bs, fps, test_loss))
     return
 
 
-def generate_result_plots(model_name, config):
+def generate_result_plots(model_name, test_loss, config):
     ########################################################################
     # Loads the configuration for the experiment from the configuration file
     type = 'loss'
@@ -62,9 +62,9 @@ def generate_result_plots(model_name, config):
 
     # Print the final loss/error for the train/validation set from the CSV file
     # print("Final training error: {0:.3f}% | Final validation error: {1:.3f}%".format(train_err_data["train_err"].iloc[-1]*100, val_err_data["val_err"].iloc[-1]*100))
-    print("Final training loss: {0:.5f} | Final validation loss: {1:.5f}".format(train_loss_data["train_loss"].iloc[-1],
-          val_loss_data["val_loss"].iloc[-1]))
+    print("Final training loss: {0:.5f} | Final validation loss: {1:.5f} | Final Test loss: {2:.5f}".format(train_loss_data["train_loss"].iloc[-1],
+          val_loss_data["val_loss"].iloc[-1], test_loss))
 
     # Plot a train vs test err/loss graph for this hyperparameter
     # plot_graph(model_path, "err", train_err_data, val_err_data)
-    plot_graph(model_name, type, train_loss_data, val_loss_data, config)
+    plot_graph(model_name, type, train_loss_data, val_loss_data, test_loss, config)

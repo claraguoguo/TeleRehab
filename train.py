@@ -38,13 +38,13 @@ def test(model, loader, criterion):
 
     for i, data in enumerate(loader, 0):
         inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
-        labels_list.append(labels.tolist())
+        labels_list += labels.tolist()
         with torch.no_grad():
             model.eval()
             # Get model outputs
             outputs = model(inputs)
             # Append outputs to list
-            outputs_list.append(outputs.flatten().tolist())
+            outputs_list += outputs.flatten().tolist()
             # Compute loss
             loss = criterion(outputs, labels.float())
         total_loss += loss.item()

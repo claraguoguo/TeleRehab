@@ -103,7 +103,6 @@ def train(epoch, model, loader, optimizer, criterion):
     
 def main():
 
-    use_local_df = False
     ########################################################################
     # load args and config
     args = parse_opts()
@@ -111,7 +110,8 @@ def main():
 
     ########################################################################
     # Extract Frames from videos
-    if use_local_df:
+    should_use_local_df = config.getint('dataset', 'should_use_local_df')
+    if should_use_local_df:
         print('Using local df')
         df_path = config.get('dataset', 'df_path')
         change_dir(df_path)
@@ -221,7 +221,9 @@ def main():
     change_dir(output_path)
 
     # Save the model
-    torch.save(model.state_dict(), model_name)
+    should_save_model = config.getint('output', 'should_save_model')
+    if should_save_model:
+        torch.save(model.state_dict(), model_name)
     
     # TODO: Final testing: using the testing data 
 

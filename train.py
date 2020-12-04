@@ -252,6 +252,6 @@ def main():
 
     # Create a scatterplot of test results
     plot_labels_and_outputs(labels_list, outputs_list, config, model_name)
-
+    plt.close()
 if __name__ == '__main__':
     main()

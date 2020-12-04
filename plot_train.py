@@ -50,6 +50,7 @@ def plot_graph(model_name, type, train_data, val_data, test_loss, config):
     plt.legend(loc='best')
     plt.savefig("{0}_{1}_{2}_lr{3}_epoch{4}_bs{5}_fps{6}_test{7:.3f}.png".format(
         model_name, loss_fn, type, lr, epoch, bs, fps, test_loss))
+    plt.close()
     return
 
 

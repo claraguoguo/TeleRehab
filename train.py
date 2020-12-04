@@ -12,6 +12,15 @@ from load_data import KiMoReDataLoader
 from plot_train import *
 from util import *
 
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print('Using device:', DEVICE)
+
+# Additional Info when using cuda
+if DEVICE.type == 'cuda':
+    print(torch.cuda.get_device_name(0))
+    print('Memory Usage:')
+    print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
+    print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
 
 def test(model, loader, criterion):
     """ Test the model on the test set.
@@ -26,7 +35,7 @@ def test(model, loader, criterion):
     total_loss = 0.0
 
     for i, data in enumerate(loader, 0):
-        inputs, labels = data
+        inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
         with torch.no_grad():
             model.eval()
             outputs = model(inputs)
@@ -52,7 +61,7 @@ def evaluate(model, loader, criterion):
     total_loss = 0.0
 
     for i, data in enumerate(loader, 0):
-        inputs, labels = data
+        inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
         with torch.no_grad():
             model.eval()
             outputs = model(inputs)
@@ -70,7 +79,7 @@ def train(epoch, model, loader, optimizer, criterion):
     for i, data in enumerate(loader, 0):
         model.train()
         # Get the inputs
-        inputs, labels = data
+        inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
 
         # Zero the parameter gradients
         optimizer.zero_grad()
@@ -148,21 +157,25 @@ def main():
 
     # train, test split
     # full_train_list --> Train_list + Validation_list    |   test_list
-    full_train_list, test_list, full_train_label, test_label = train_test_split(all_X_list, all_y_list, test_size=test_size, random_state=seed)
+    full_train_list, test_list, full_train_label, test_label = train_test_split(all_X_list, all_y_list,
+                                                                                test_size=test_size, random_state=seed)
 
     # full_train_list --> Train_list + Validation_list
     train_list, valid_list, train_label, valid_label = \
         train_test_split(full_train_list, full_train_label, test_size=0.1, random_state=seed)
 
     # Obtain the PyTorch data loader objects to load batches of the datasets
-    full_train_loader, test_loader = get_data_loader(full_train_list, test_list, full_train_label, test_label, model_name, max_video_sec, config)
+    full_train_loader, test_loader = get_data_loader(full_train_list, test_list, full_train_label,
+                                                     test_label, model_name, max_video_sec, config)
 
-    train_loader, valid_loader = get_data_loader(train_list, valid_list, train_label, valid_label, model_name, max_video_sec, config)
+    train_loader, valid_loader = get_data_loader(train_list, valid_list, train_label, valid_label,
+                                                 model_name, max_video_sec, config)
 
     ########################################################################
     # Define a Convolutional Neural Network, defined in models
     model = generate_model(model_name, max_video_sec, config)
-
+    # Load model on GPU
+    model.to(DEVICE)
     ########################################################################
     # Define the Loss function and optimizer
     if loss_fn == 'l1':
@@ -217,10 +230,12 @@ def main():
     fps = config.get('dataset', 'fps')
 
     df = pd.DataFrame({"epoch": epochs, "train_loss": train_loss})
-    df.to_csv("train_{}_loss_{}_lr{}_epoch{}_bs{}_fps{}.csv".format(model_name, loss_fn, learning_rate, num_epochs, bs, fps), index=False)
+    df.to_csv("train_{}_loss_{}_lr{}_epoch{}_bs{}_fps{}.csv".format(model_name, loss_fn,
+                                                                    learning_rate, num_epochs, bs, fps), index=False)
 
     df = pd.DataFrame({"epoch": epochs, "val_loss": val_loss})
-    df.to_csv("val_{}_loss_{}_lr{}_epoch{}_bs{}_fps{}.csv".format(model_name, loss_fn, learning_rate, num_epochs, bs, fps), index=False)
+    df.to_csv("val_{}_loss_{}_lr{}_epoch{}_bs{}_fps{}.csv".format(model_name, loss_fn,
+                                                                  learning_rate, num_epochs, bs, fps), index=False)
 
     generate_result_plots(model_name, test_loss, config)
 

@@ -33,12 +33,16 @@ def test(model, loader, criterion):
          loss: A scalar for the average loss function over the test set
      """
     total_loss = 0.0
+    labels_list = []
+    outputs_list = []
 
     for i, data in enumerate(loader, 0):
         inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
+        labels_list.append(labels)
         with torch.no_grad():
             model.eval()
             outputs = model(inputs)
+            outputs_list.append(outputs)
             loss = criterion(outputs, labels.float())
         total_loss += loss.item()
         print('Test loss = {}'.format(loss.item()))

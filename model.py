@@ -1,6 +1,7 @@
 
 from models.cnn3d import CNN3D
 import torchvision.models as models
+import torch
 
 
 def generate_model(model_name, max_num_frame, config):
@@ -12,6 +13,8 @@ def generate_model(model_name, max_num_frame, config):
 
     elif model_name =='resnet':
         model = models.video.r3d_18(pretrained=True)
+        num_ftrs = model.fc.in_features
+        model.fc = torch.nn.Linear(num_ftrs, 1)
         print("Loading r3d_18 model")
 
     else:

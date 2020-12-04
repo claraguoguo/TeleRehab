@@ -38,18 +38,25 @@ def test(model, loader, criterion):
 
     for i, data in enumerate(loader, 0):
         inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
-        labels_list.append(labels)
+        labels_list.append(labels.tolist())
         with torch.no_grad():
             model.eval()
+            # Get model outputs
             outputs = model(inputs)
-            outputs_list.append(outputs)
+            # Append outputs to list
+            outputs_list.append(outputs.flatten().tolist())
+            # Compute loss
             loss = criterion(outputs, labels.float())
         total_loss += loss.item()
         print('Test loss = {}'.format(loss.item()))
 
     loss = float(total_loss) / (i + 1)
+    print('Final testing labels_list:')
+    print(labels_list)
+    print('Final testing outputs_list:')
+    print(outputs_list)
 
-    return loss
+    return labels_list, outputs_list, loss
 
 def evaluate(model, loader, criterion):
     """ Evaluate the network on the validation set.
@@ -217,7 +224,7 @@ def main():
     print("Final Train loss: {}".format(final_train_loss))
 
     # Test the final model
-    test_loss = test(model, test_loader, criterion)
+    labels_list, outputs_list, test_loss = test(model, test_loader, criterion)
     print("Final Test loss: {}".format(test_loss))
 
     # Change to ouput directory and create a folder with timestamp
@@ -228,8 +235,6 @@ def main():
     should_save_model = config.getint('output', 'should_save_model')
     if should_save_model:
         torch.save(model.state_dict(), model_name)
-    
-    # TODO: Final testing: using the testing data 
 
     # Write the train/test loss/err into CSV file for plotting later
     epochs = np.arange(1, num_epochs + 1)
@@ -244,6 +249,9 @@ def main():
                                                                   learning_rate, num_epochs, bs, fps), index=False)
 
     generate_result_plots(model_name, test_loss, config)
+
+    # Create a scatterplot of test results
+    plot_labels_and_outputs(labels_list, outputs_list, config, model_name)
 
 if __name__ == '__main__':
     main()

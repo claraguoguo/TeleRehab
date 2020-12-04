@@ -3,12 +3,33 @@ from torch.utils.data.sampler import SubsetRandomSampler
 import torchvision.transforms as transforms
 import os
 from dataset import CNN3D_Dataset
+import matplotlib.pyplot as plt
+import numpy as np
 
 # from spatial_transforms import (Compose, Normalize, Scale, CenterCrop, ToTensor)
 # from temporal_transforms import LoopPadding
 
 import configparser
 
+
+def plot_labels_and_outputs(labels, outputs, config, model_name):
+
+    epoch = config.getint(model_name, 'epoch')
+    lr = config.getfloat(model_name, 'lr')
+    bs = config.getint(model_name, 'batch_size')
+    loss_fn = config.get(model_name, 'loss')
+    fps = config.get('dataset', 'fps')
+
+    x = np.arange(0, len(labels), 1)
+    plt.plot(x, labels, 'o', color='black', label='Labels')
+    plt.plot(x, outputs, 'o', color='red', label='Predictions')
+    plt.ylabel("Score")
+    plt.xlabel("Test Data")
+    plt.legend(loc='best')
+    plt.title("Scatterplot of Labels and Predictions \n {0}_{1}_lr{2}_epoch{3}_bs{4}_fps{5}.png".format(
+        model_name, loss_fn , lr, epoch, bs, fps))
+    plt.savefig("{0}_test_scatterplot_{1}_lr{2}_epoch{3}_bs{4}_fps{5}.png".format(
+        model_name, loss_fn , lr, epoch, bs, fps))
 
 def change_dir(new_dir):
     print('Change directory to{}'.format(new_dir))
@@ -90,7 +111,8 @@ def get_data_loader(train_list, test_list, train_label, test_label, model_name, 
     # TODO: Normalize Image (center / min-max) & Map rgb --> [0, 1]
     spatial_transform = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.Resize([frame_size, frame_size]),
+        transforms.Resize(frame_size),
+        transforms.CenterCrop(frame_size),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)])
 

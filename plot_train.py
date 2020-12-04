@@ -41,14 +41,15 @@ def plot_graph(model_name, type, train_data, val_data, test_loss, config):
     fps = config.get('dataset', 'fps')
 
     plt.figure()
-    plt.title("{} over training epochs \n {}_lr{}_epoch{}_bs{}_fps{}_test{}".format(
+    plt.title("{0} over training epochs \n {1}_lr{2}_epoch{3}_bs{4}_fps{5}_test{6:.3f}".format(
         type, model_name, lr, epoch, bs, fps, test_loss))
     plt.plot(train_data["epoch"], train_data["train_{}".format(type)], label="Train")
     plt.plot(val_data["epoch"], val_data["val_{}".format(type)], label="Validation")
     plt.xlabel("Epoch")
     plt.ylabel(loss_fn + type)
     plt.legend(loc='best')
-    plt.savefig("{}_{}_{}_lr{}_epoch{}_bs{}_fps{}_test{}.png".format(model_name, loss_fn, type, lr, epoch, bs, fps, test_loss))
+    plt.savefig("{0}_{1}_{2}_lr{3}_epoch{4}_bs{5}_fps{6}_test{7:.3f}.png".format(
+        model_name, loss_fn, type, lr, epoch, bs, fps, test_loss))
     return
 
 

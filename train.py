@@ -5,7 +5,7 @@ import numpy as np
 import time
 import torch.nn as nn
 import torch.optim as optim
-
+from torch.optim import lr_scheduler
 from model import generate_model
 from opts import parse_opts
 from load_data import KiMoReDataLoader
@@ -188,14 +188,17 @@ def main():
     # Load model on GPU
     model.to(DEVICE)
     ########################################################################
-    # Define the Loss function and optimizer
+    # Define the Loss function, optimizer, scheduler
     if loss_fn == 'l1':
         print('Loss function: nn.L1Loss()')
         criterion = nn.L1Loss()
-    else: 
+    else:
         print('Loss function: nn.MSELoss()')
         criterion = nn.MSELoss()
+
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-4)
+
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
     ########################################################################
     # Set up some numpy arrays to store the training/test loss/accuracy
@@ -209,8 +212,10 @@ def main():
     print('Start training {}...'.format(model_name))
 
     start_time = time.time()
-    for epoch in range(num_epochs):  # loop over the dataset multiple times
+    for epoch in range(num_epochs):
         train_loss[epoch] = train(epoch, model, train_loader, optimizer, criterion)
+        scheduler.step()
+
         val_loss[epoch] = evaluate(model, valid_loader, criterion)
         print("Epoch {}: Train loss: {} | Validation loss: {}".format(epoch + 1, train_loss[epoch], val_loss[epoch]))
 

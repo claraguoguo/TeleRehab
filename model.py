@@ -1,15 +1,19 @@
 
-from models.cnn3d import CNN3D
+from models.cnn3d import *
 import torchvision.models as models
 import torch
 
 
 def generate_model(model_name, max_num_frame, config):
-    assert model_name in ['cnn', 'resnet']
+    assert model_name in ['cnn', 'c3d', 'resnet']
+    frame_size = config.getint(model_name, 'frame_size')
     if model_name == 'cnn':
-        frame_size = config.getint(model_name, 'frame_size')
         model = CNN3D(t_dim=max_num_frame, img_x=frame_size, img_y=frame_size)
         print("Loading CNN3D model")
+
+    elif model_name =='c3d':
+        model = C3D()
+        print("Loading c3d model")
 
     elif model_name =='resnet':
         model = models.video.r3d_18(pretrained=True)

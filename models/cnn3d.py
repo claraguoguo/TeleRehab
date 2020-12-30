@@ -125,7 +125,7 @@ class C3D(nn.Module):
         self.fc6 = nn.Linear(512 * self.conv5_outshape[0] * self.conv5_outshape[1] * self.conv5_outshape[2], 4096)
         self.fc7 = nn.Linear(4096, 4096)
         # self.fc8 = nn.Linear(4096, 487)
-        self.fc9 = nn.Linear(4096, 1)
+        self.fc8 = nn.Linear(4096, 1)
 
         self.dropout = nn.Dropout(p=0.5)
 

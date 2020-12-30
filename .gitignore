@@ -1,6 +1,7 @@
 .idea
 videos/*
 data_tmp/*
+histogram_pic/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

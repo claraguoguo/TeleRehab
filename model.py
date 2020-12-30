@@ -12,7 +12,7 @@ def generate_model(model_name, max_num_frame, config):
         print("Loading CNN3D model")
 
     elif model_name =='c3d':
-        model = C3D()
+        model = C3D(t_dim=max_num_frame, img_x=frame_size, img_y=frame_size)
         print("Loading c3d model")
 
     elif model_name =='resnet':

@@ -77,30 +77,55 @@ class C3D(nn.Module):
     The C3D network as described in [1].
     """
 
-    def __init__(self):
+    def __init__(self, t_dim, img_x, img_y):
+
         super(C3D, self).__init__()
 
-        self.conv1 = nn.Conv3d(3, 64, kernel_size=(3, 3, 3), padding=(1, 1, 1))
-        self.pool1 = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))
+        # set video dimension
+        self.t_dim = t_dim
+        self.img_x = img_x
+        self.img_y = img_y
 
-        self.conv2 = nn.Conv3d(64, 128, kernel_size=(3, 3, 3), padding=(1, 1, 1))
-        self.pool2 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2))
+        # set kernel size, stride size, padding size
+        self.k1, self.k2, self.k3 = (3, 3, 3), (2, 2, 2), (1, 2, 2)   # 3d kernel size
+        self.s1, self.s2, self.s3 = (2, 2, 2), (1, 2, 2), (1, 1, 1)  # 3d strides
+        self.pd1, self.pd2, self.pd3 = (1, 1, 1), (0, 1, 1), (0, 0, 0)  # 3d padding
 
-        self.conv3a = nn.Conv3d(128, 256, kernel_size=(3, 3, 3), padding=(1, 1, 1))
-        self.conv3b = nn.Conv3d(256, 256, kernel_size=(3, 3, 3), padding=(1, 1, 1))
-        self.pool3 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2))
+        self.conv1 = nn.Conv3d(3, 64, kernel_size=self.k1, padding=self.pd1)
+        self.conv1_outshape = conv3D_output_size((self.t_dim, self.img_x, self.img_y), self.pd1, self.k1, self.s3)
+        self.pool1 = nn.MaxPool3d(kernel_size=self.k3, stride=self.s2)
+        self.conv1_outshape = conv3D_output_size(self.conv1_outshape, self.pd3, self.k3, self.s2)
 
-        self.conv4a = nn.Conv3d(256, 512, kernel_size=(3, 3, 3), padding=(1, 1, 1))
-        self.conv4b = nn.Conv3d(512, 512, kernel_size=(3, 3, 3), padding=(1, 1, 1))
-        self.pool4 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2))
+        self.conv2 = nn.Conv3d(64, 128, kernel_size=self.k1, padding=self.pd1)
+        self.conv2_outshape = conv3D_output_size(self.conv1_outshape, self.pd1, self.k1, self.s3)
+        self.pool2 = nn.MaxPool3d(kernel_size=self.k2, stride=self.s1)
+        self.conv2_outshape = conv3D_output_size(self.conv2_outshape, self.pd3, self.k2, self.s1)
 
-        self.conv5a = nn.Conv3d(512, 512, kernel_size=(3, 3, 3), padding=(1, 1, 1))
-        self.conv5b = nn.Conv3d(512, 512, kernel_size=(3, 3, 3), padding=(1, 1, 1))
-        self.pool5 = nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2), padding=(0, 1, 1))
+        self.conv3a = nn.Conv3d(128, 256, kernel_size=self.k1, padding=self.pd1)
+        self.conv3_outshape = conv3D_output_size(self.conv2_outshape, self.pd1, self.k1, self.s3)
+        self.conv3b = nn.Conv3d(256, 256, kernel_size=self.k1, padding=self.pd1)
+        self.conv3_outshape = conv3D_output_size(self.conv3_outshape, self.pd1, self.k1, self.s3)
+        self.pool3 = nn.MaxPool3d(kernel_size=self.k2, stride=self.s1)
+        self.conv3_outshape = conv3D_output_size(self.conv3_outshape, self.pd3, self.k2, self.s1)
 
-        self.fc6 = nn.Linear(8192, 4096)
+        self.conv4a = nn.Conv3d(256, 512, kernel_size=self.k1, padding=self.pd1)
+        self.conv4_outshape = conv3D_output_size(self.conv3_outshape, self.pd1, self.k1, self.s3)
+        self.conv4b = nn.Conv3d(512, 512, kernel_size=self.k1, padding=self.pd1)
+        self.conv4_outshape = conv3D_output_size(self.conv4_outshape, self.pd1, self.k1, self.s3)
+        self.pool4 = nn.MaxPool3d(kernel_size=self.k2, stride=self.s1)
+        self.conv4_outshape = conv3D_output_size(self.conv4_outshape, self.pd3, self.k2, self.s1)
+
+        self.conv5a = nn.Conv3d(512, 512, kernel_size=self.k1, padding=self.pd1)
+        self.conv5_outshape = conv3D_output_size(self.conv4_outshape, self.pd1, self.k1, self.s3)
+        self.conv5b = nn.Conv3d(512, 512, kernel_size=self.k1, padding=self.pd1)
+        self.conv5_outshape = conv3D_output_size(self.conv5_outshape, self.pd1, self.k1, self.s3)
+        self.pool5 = nn.MaxPool3d(kernel_size=self.k2, stride=self.s1, padding=self.pd2)
+        self.conv5_outshape = conv3D_output_size(self.conv5_outshape, self.pd2, self.k2, self.s1)
+
+        self.fc6 = nn.Linear(512 * self.conv5_outshape[0] * self.conv5_outshape[1] * self.conv5_outshape[2], 4096)
         self.fc7 = nn.Linear(4096, 4096)
-        self.fc8 = nn.Linear(4096, 1)
+        # self.fc8 = nn.Linear(4096, 487)
+        self.fc9 = nn.Linear(4096, 1)
 
         self.dropout = nn.Dropout(p=0.5)
 
@@ -126,7 +151,9 @@ class C3D(nn.Module):
         h = self.relu(self.conv5b(h))
         h = self.pool5(h)
 
-        h = h.view(-1, 8192)
+        fc_input_size = h.shape[1] * h.shape[2] * h.shape[3] * h.shape[4]
+
+        h = h.view(-1, fc_input_size)
         h = self.relu(self.fc6(h))
         h = self.dropout(h)
         h = self.relu(self.fc7(h))

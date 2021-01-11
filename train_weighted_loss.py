@@ -82,6 +82,7 @@ def train(epoch, model, loader, optimizer, criterion):
 
         # Zero the parameter gradients
         optimizer.zero_grad()
+        labels_list, outputs_list, test_loss, test_err = test(model, test_loader, criterion)
 
         # Forward pass, backward pass, and optimize
         outputs = model(inputs)
@@ -222,8 +223,8 @@ def main():
     for epoch in range(num_epochs):
         train_loss[epoch], train_acc[epoch] = train(epoch, model, train_loader, optimizer, criterion)
         scheduler.step()
-        val_loss[epoch], val_acc[epoch] = test(model, valid_loader, criterion)
-        print("Epoch {}: Train acc: {}, Train loss: {} | Validation acc: {}, Validation loss: {}".format(\
+        _, _, _, val_loss[epoch], val_acc[epoch] = test(model, valid_loader, criterion)
+        print("Epoch {}: Train acc: {}, Train loss: {} | Valid acc: {}, Valid loss: {}".format(\
             epoch + 1, train_acc[epoch], train_loss[epoch], val_acc[epoch], val_loss[epoch]))
 
     print('Finished Training')

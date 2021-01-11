@@ -45,7 +45,6 @@ def plot_graph(model_name, type, train_data, val_data, test_loss, config):
     epoch = config.getint(model_name, 'epoch')
     lr = config.getfloat(model_name, 'lr')
     bs = config.getint(model_name, 'batch_size')
-    valid_loss = val_data["val_loss"].iloc[-1]
     loss_fn = config.get(model_name, 'loss')
     fps = config.get('dataset', 'fps')
 

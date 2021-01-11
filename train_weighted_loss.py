@@ -235,11 +235,11 @@ def main():
     # Train model with all training data:
     print('Training model with all data...')
     final_train_loss, final_train_acc = train(epoch, model, full_train_loader, optimizer, criterion)
-    print("Final Train Loss: {}, Final Train Accuracy: {}".format(final_train_loss, final_train_acc))
+    print("Final Train Loss: {:0.2f}, Final Train Accuracy: {:0.2f}".format(final_train_loss, final_train_acc))
 
     # Test the final model
     labels_list, outputs_list, predict_list, test_loss, test_acc = test(model, test_loader, criterion)
-    print("Final Test Loss: {}, Final Test Accuracy: {}".format(test_loss, test_acc))
+    print("Final Test Loss: {:0.2f}, Final Test Accuracy: {:0.2f}".format(test_loss, test_acc))
 
     # Change to ouput directory and create a folder with timestamp
     output_path = config.get('dataset', 'result_output_path')

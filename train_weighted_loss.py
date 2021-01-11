@@ -1,5 +1,6 @@
 
 from sklearn.model_selection import train_test_split
+from sklearn import metrics
 import pandas as pd
 import numpy as np
 import time
@@ -48,8 +49,9 @@ def test(model, loader, criterion):
             # Get model outputs
             outputs = model(inputs)
             _, predict = torch.max(outputs, 1)
-            # Append outputs to list
-            outputs_list += outputs.flatten().tolist()
+            # outputs_list += outputs.flatten().tolist()
+            # Append outputs with label = 1 to list
+            outputs_list += outputs[:, 1].flatten().tolist()
             predict_list += predict.flatten().tolist()
             # Compute loss
             loss = criterion(outputs, labels.long())
@@ -93,7 +95,7 @@ def train(epoch, model, loader, optimizer, criterion):
         loss.backward()
         optimizer.step()
 
-        # Calculate the statistics
+        # Calculate loss & accuracy statistics
         total_train_loss += loss.item()
         total_train_corr += torch.sum(predict == labels.data)
         total_labels += len(labels)
@@ -240,6 +242,24 @@ def main():
     # Test the final model
     labels_list, outputs_list, predict_list, test_loss, test_acc = test(model, test_loader, criterion)
     print("Final Test Loss: {:0.2f}, Final Test Accuracy: {:0.2f}".format(test_loss, test_acc))
+
+    # Compute ROC curve and ROC area for each class
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+    n_classes = 2
+    for i in range(n_classes):
+        fpr[i], tpr[i], _ = metrics.roc_curve(np.asarray(labels_list), np.asarray(outputs_list))
+        roc_auc[i] = metrics.auc(fpr[i], tpr[i])
+
+        # Compute micro-average ROC curve and ROC area
+        fpr["micro"], tpr["micro"], _ = metrics.roc_curve(np.asarray(labels_list), np.asarray(outputs_list))
+        roc_auc["micro"] = metrics.auc(fpr["micro"], tpr["micro"])
+        # calculate AUC
+        auc = metrics.roc_auc_score(np.asarray(labels_list), np.asarray(outputs_list))
+        print('Class: {} |  AUC: {:0.3f}'.format(i, auc))
+
+    plot_ROC(fpr, tpr, roc_auc, n_classes, model_name, config)
 
     # Change to ouput directory and create a folder with timestamp
     output_path = config.get('dataset', 'result_output_path')

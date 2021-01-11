@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 from util import *
+from sklearn import metrics
+from itertools import cycle
 
 
 def load_csv(type, model_name, config, include_acc=False):
@@ -88,3 +90,55 @@ def generate_result_plots(model_name, test_loss, config, test_acc=-1):
 
     # Plot a train vs test loss graph for this hyperparameter
     plot_graph(model_name, 'loss', train_loss_data, val_loss_data, test_loss, config)
+
+def plot_ROC(fpr, tpr, roc_auc, n_classes, model_name, config):
+
+    epoch = config.getint(model_name, 'epoch')
+    lr = config.getfloat(model_name, 'lr')
+    bs = config.getint(model_name, 'batch_size')
+    loss_fn = config.get(model_name, 'loss')
+    fps = config.get('dataset', 'fps')
+    lw = 2
+    # First aggregate all false positive rates
+    all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
+    # Then interpolate all ROC curves at this points
+    mean_tpr = np.zeros_like(all_fpr)
+    for i in range(n_classes):
+        mean_tpr += np.interp(all_fpr, fpr[i], tpr[i])
+
+    # Finally average it and compute AUC
+    mean_tpr /= n_classes
+
+    fpr["macro"] = all_fpr
+    tpr["macro"] = mean_tpr
+    roc_auc["macro"] = metrics.auc(fpr["macro"], tpr["macro"])
+
+
+    # Plot all ROC curves
+    plt.figure()
+    plt.plot(fpr["micro"], tpr["micro"],
+            label='micro-average ROC curve (area = {0:0.2f})'
+                ''.format(roc_auc["micro"]),
+            color='deeppink', linestyle=':', linewidth=4)
+
+    plt.plot(fpr["macro"], tpr["macro"],
+            label='macro-average ROC curve (area = {0:0.2f})'
+                ''.format(roc_auc["macro"]),
+            color='navy', linestyle=':', linewidth=4)
+
+    colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
+    for i, color in zip(range(n_classes), colors):
+        plt.plot(fpr[i], tpr[i], color=color, lw=lw,
+                label='ROC curve of class {0} (area = {1:0.2f})'
+                ''.format(i, roc_auc[i]))
+
+    plt.plot([0, 1], [0, 1], 'k--', lw=lw)
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC Curves plot')
+    plt.legend(loc="lower right")
+    plt.savefig("ROC_{0}_{1}_lr{2}_epoch{3}_bs{4}_fps{5}.png".format(
+        model_name, loss_fn, lr, epoch, bs, fps))
+    plt.close()

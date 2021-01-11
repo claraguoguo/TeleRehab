@@ -37,7 +37,7 @@ def test(model, loader, criterion):
     outputs_list = []
     predict_list = []
 
-    total_err = 0.0
+    total_corr = 0.0
     total_labels = 0
 
     for i, data in enumerate(loader, 0):
@@ -54,57 +54,25 @@ def test(model, loader, criterion):
             # Compute loss
             loss = criterion(outputs, labels.long())
 
-            total_err += torch.sum(predict != labels.data)
+            total_corr += torch.sum(predict == labels.data)
             total_labels += len(labels)
             total_loss += loss.item()
-        print('total_valid_err: {}, total size: {}'.format(total_err, total_labels))
+            accuracy = total_corr / total_labels
+        print('total_corr: {}, total size: {}, accuracy: {:0.2f}'.format(total_corr, total_labels, accuracy))
 
     loss = float(total_loss) / (i + 1)
-    print('Final testing labels_list:')
+    print('testing labels_list:')
     print(labels_list)
-    print('Final testing outputs_list:')
-    print(outputs_list)
-    print('Final testing predicts_list:')
+    # print('testing outputs_list:')
+    # print(outputs_list)
+    print('testing predicts_list:')
     print(predict_list)
-    err = float(total_err) / total_labels
 
-    return labels_list, outputs_list, loss, err
-
-def evaluate(model, loader, criterion):
-    """ Evaluate the network on the validation set.
-
-     Args:
-         model: PyTorch neural network object
-         loader: PyTorch data loader for the validation set
-         criterion: The loss function
-     Returns:
-         err: A scalar for the average classification error over the validation set
-         loss: A scalar for the average loss function over the validation set
-     """
-    total_loss = 0.0
-    total_err = 0.0
-    total_labels = 0
-    for i, data in enumerate(loader, 0):
-        inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
-        with torch.no_grad():
-            model.eval()
-            outputs = model(inputs)
-            _, predict = torch.max(outputs, 1)
-            loss = criterion(outputs, labels.long())
-        total_loss += loss.item()
-        total_err += torch.sum(predict != labels.data)
-        total_labels += len(labels)
-        print('total_valid_err: {}, total size: {}'.format(total_err, total_labels))
-        print(f'predict: {predict}, \nlabels: {labels.data.T}')
-
-    loss = float(total_loss) / (i + 1)
-    err = float(total_err) / total_labels
-
-    return loss, err 
+    return labels_list, outputs_list, predict_list, loss, accuracy
 
 def train(epoch, model, loader, optimizer, criterion):
     total_train_loss = 0.0
-    total_train_err = 0.0
+    total_train_corr = 0.0
     counter = 0 
     total_labels = 0
     for i, data in enumerate(loader, 0):
@@ -126,14 +94,14 @@ def train(epoch, model, loader, optimizer, criterion):
 
         # Calculate the statistics
         total_train_loss += loss.item()
-        total_train_err += torch.sum(predict != labels.data)
+        total_train_corr += torch.sum(predict == labels.data)
+        accuracy = total_train_corr/total_labels
         total_labels += len(labels)
-        print('total_train_err: {}, total size: {}, accuracy: {:0.2f}'.format(\
-            total_train_err, total_labels, 1 - total_train_err/total_labels))
+        print('total_train_corr: {}, total size: {}, accuracy: {:0.2f}'.format(\
+            total_train_corr, total_labels, accuracy))
 
     loss = float(total_train_loss) / (i+1)
-    err = float(total_train_err) / total_labels
-    return loss, err
+    return loss, accuracy
     
 def main():
 
@@ -240,9 +208,9 @@ def main():
     ########################################################################
     # Set up some numpy arrays to store the training/test loss/accuracy
     train_loss = np.zeros(num_epochs)
-    train_err = np.zeros(num_epochs)
+    train_acc = np.zeros(num_epochs)
     val_loss = np.zeros(num_epochs)
-    val_err = np.zeros(num_epochs)
+    val_acc = np.zeros(num_epochs)
 
     ########################################################################
     # Train the network
@@ -252,11 +220,11 @@ def main():
 
     start_time = time.time()
     for epoch in range(num_epochs):
-        train_loss[epoch], train_err[epoch] = train(epoch, model, train_loader, optimizer, criterion)
+        train_loss[epoch], train_acc[epoch] = train(epoch, model, train_loader, optimizer, criterion)
         scheduler.step()
-        val_loss[epoch], val_err[epoch] = evaluate(model, valid_loader, criterion)
-        print("Epoch {}: Train err: {}, Train loss: {} | Validation err: {}, Validation loss: {}".format(\
-            epoch + 1, train_err[epoch], train_loss[epoch], val_err[epoch], val_loss[epoch]))
+        val_loss[epoch], val_acc[epoch] = test(model, valid_loader, criterion)
+        print("Epoch {}: Train acc: {}, Train loss: {} | Validation acc: {}, Validation loss: {}".format(\
+            epoch + 1, train_acc[epoch], train_loss[epoch], val_acc[epoch], val_loss[epoch]))
 
     print('Finished Training')
     end_time = time.time()
@@ -264,12 +232,12 @@ def main():
     print("Total time elapsed: {:.2f} seconds".format(elapsed_time))
 
     # Train model with all training data:
-    final_train_loss, final_train_err = train(epoch, model, full_train_loader, optimizer, criterion)
-    print("Final Train Loss: {}, Final Train Error: {}".format(final_train_loss, final_train_err))
+    final_train_loss, final_train_acc = train(epoch, model, full_train_loader, optimizer, criterion)
+    print("Final Train Loss: {}, Final Train Accuracy: {}".format(final_train_loss, final_train_acc))
 
     # Test the final model
-    labels_list, outputs_list, test_loss, test_err = test(model, test_loader, criterion)
-    print("Final Test Loss: {}, Final Test Error: {}".format(test_loss, test_err))
+    labels_list, outputs_list, predict_list, test_loss, test_acc = test(model, test_loader, criterion)
+    print("Final Test Loss: {}, Final Test Accuracy: {}".format(test_loss, test_acc))
 
     # Change to ouput directory and create a folder with timestamp
     output_path = config.get('dataset', 'result_output_path')
@@ -291,11 +259,18 @@ def main():
     df = pd.DataFrame({"epoch": epochs, "val_loss": val_loss})
     df.to_csv("val_{}_loss_{}_lr{}_epoch{}_bs{}_fps{}.csv".format(model_name, loss_fn,
                                                                   learning_rate, num_epochs, bs, fps), index=False)
+    df = pd.DataFrame({"epoch": epochs, "train_acc": train_acc})
+    df.to_csv("train_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_name, learning_rate, num_epochs, bs, fps), index=False)
 
-    generate_result_plots(model_name, test_loss, config)
+    df = pd.DataFrame({"epoch": epochs, "val_acc": val_acc})
+    df.to_csv("val_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_name, learning_rate, num_epochs, bs, fps), index=False)
+
+    generate_result_plots(model_name, test_loss, test_acc, config)
 
     # Create a scatterplot of test results
-    plot_labels_and_outputs(labels_list, outputs_list, config, model_name)
+    plot_labels_and_outputs(labels_list, predict_list, config, model_name)
+
+
     plt.close()
 if __name__ == '__main__':
     main()

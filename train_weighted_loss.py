@@ -96,8 +96,8 @@ def train(epoch, model, loader, optimizer, criterion):
         # Calculate the statistics
         total_train_loss += loss.item()
         total_train_corr += torch.sum(predict == labels.data)
-        accuracy = total_train_corr/total_labels
         total_labels += len(labels)
+        accuracy = total_train_corr/total_labels
         print('total_train_corr: {}, total size: {}, accuracy: {:0.2f}'.format(\
             total_train_corr, total_labels, accuracy))
 

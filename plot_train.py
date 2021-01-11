@@ -23,8 +23,8 @@ def load_csv(type, model_name, config):
 
     train_file = 'train_{}_{}_{}_lr{}_epoch{}_bs{}_fps{}.csv'.format(model_path, type, loss_fn, lr, epoch, bs, fps)
     val_file = 'val_{}_{}_{}_lr{}_epoch{}_bs{}_fps{}.csv'.format(model_path, type, loss_fn, lr, epoch, bs, fps)
-    train_acc_file = "train_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_path, loss_fn, lr, epoch, bs, fps)
-    val_acc_file = "val_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_path, loss_fn, lr, epoch, bs, fps)
+    train_acc_file = "train_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_path, lr, epoch, bs, fps)
+    val_acc_file = "val_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_path, lr, epoch, bs, fps)
 
     train_data = pd.read_csv(train_file)
     val_data = pd.read_csv(val_file)

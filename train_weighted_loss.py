@@ -39,7 +39,7 @@ def test(model, loader, criterion):
 
     total_corr = 0.0
     total_labels = 0
-
+    accuracy = 0
     for i, data in enumerate(loader, 0):
         inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
         labels_list += labels.tolist()
@@ -75,6 +75,7 @@ def train(epoch, model, loader, optimizer, criterion):
     total_train_corr = 0.0
     counter = 0 
     total_labels = 0
+    accuracy = 0
     for i, data in enumerate(loader, 0):
         model.train()
         # Get the inputs
@@ -232,6 +233,7 @@ def main():
     print("Total time elapsed: {:.2f} seconds".format(elapsed_time))
 
     # Train model with all training data:
+    print('Training model with all data...')
     final_train_loss, final_train_acc = train(epoch, model, full_train_loader, optimizer, criterion)
     print("Final Train Loss: {}, Final Train Accuracy: {}".format(final_train_loss, final_train_acc))
 

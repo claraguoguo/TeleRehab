@@ -35,6 +35,10 @@ def test(model, loader, criterion):
     total_loss = 0.0
     labels_list = []
     outputs_list = []
+    predict_list = []
+
+    total_err = 0.0
+    total_labels = 0
 
     for i, data in enumerate(loader, 0):
         inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
@@ -43,20 +47,28 @@ def test(model, loader, criterion):
             model.eval()
             # Get model outputs
             outputs = model(inputs)
+            _, predict = torch.max(outputs, 1)
             # Append outputs to list
             outputs_list += outputs.flatten().tolist()
+            predict_list += predict.flatten().tolist()
             # Compute loss
-            loss = criterion(outputs, labels.float())
-        total_loss += loss.item()
-        print('Test loss = {}'.format(loss.item()))
+            loss = criterion(outputs, labels.long())
+
+            total_err += torch.sum(predict != labels.data)
+            total_labels += len(labels)
+            total_loss += loss.item()
+        print('total_valid_err: {}, total size: {}'.format(total_err, total_labels))
 
     loss = float(total_loss) / (i + 1)
     print('Final testing labels_list:')
     print(labels_list)
     print('Final testing outputs_list:')
     print(outputs_list)
+    print('Final testing predicts_list:')
+    print(predict_list)
+    err = float(total_err) / total_labels
 
-    return labels_list, outputs_list, loss
+    return labels_list, outputs_list, loss, err
 
 def evaluate(model, loader, criterion):
     """ Evaluate the network on the validation set.
@@ -70,23 +82,31 @@ def evaluate(model, loader, criterion):
          loss: A scalar for the average loss function over the validation set
      """
     total_loss = 0.0
-
+    total_err = 0.0
+    total_labels = 0
     for i, data in enumerate(loader, 0):
         inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
         with torch.no_grad():
             model.eval()
             outputs = model(inputs)
-            loss = criterion(outputs, labels.float())
+            _, predict = torch.max(outputs, 1)
+            loss = criterion(outputs, labels.long())
         total_loss += loss.item()
-        print('Validation loss = {}'.format(loss.item()))
+        total_err += torch.sum(predict != labels.data)
+        total_labels += len(labels)
+        print('total_valid_err: {}, total size: {}'.format(total_err, total_labels))
+        print(f'predict: {predict}, \nlabels: {labels.data.T}')
 
     loss = float(total_loss) / (i + 1)
+    err = float(total_err) / total_labels
 
-    return loss
+    return loss, err 
 
 def train(epoch, model, loader, optimizer, criterion):
     total_train_loss = 0.0
+    total_train_err = 0.0
     counter = 0 
+    total_labels = 0
     for i, data in enumerate(loader, 0):
         model.train()
         # Get the inputs
@@ -97,20 +117,23 @@ def train(epoch, model, loader, optimizer, criterion):
 
         # Forward pass, backward pass, and optimize
         outputs = model(inputs)
-
-        print(f'Epoch: {epoch}, Batch: {counter}, \noutputs: {outputs.data.T}, \nlabels: {labels.data.T}')
+        _, predict = torch.max(outputs, 1)
+        print(f'Epoch: {epoch}, Batch: {counter}, \npredict: {predict}, \nlabels: {labels.data.T}')
         counter += 1
-
-        loss = criterion(outputs, labels.float())
-        print('Training loss = {}'.format(loss.item()))
+        loss = criterion(outputs, labels.long())
         loss.backward()
         optimizer.step()
 
         # Calculate the statistics
         total_train_loss += loss.item()
-        # total_epoch += len(labels)
+        total_train_err += torch.sum(predict != labels.data)
+        total_labels += len(labels)
+        print('total_train_err: {}, total size: {}, accuracy: {:0.2f}'.format(\
+            total_train_err, total_labels, 1 - total_train_err/total_labels))
 
-    return float(total_train_loss) / (i+1)
+    loss = float(total_train_loss) / (i+1)
+    err = float(total_train_err) / total_labels
+    return loss, err
     
 def main():
 
@@ -149,15 +172,23 @@ def main():
     # Loads the configuration for the experiment from the configuration file
     model_name = args.model_name
     num_epochs = config.getint(model_name, 'epoch')
-    optimizer = config.get(model_name, 'optimizer')
+    # optimizer = config.get(model_name, 'optimizer')
     loss_fn = config.get(model_name, 'loss')
     learning_rate = config.getfloat(model_name, 'lr')
     test_size = config.getfloat('dataset', 'test_size')
     bs = config.getint(model_name, 'batch_size')
+
+    binary_threshold = config.getint('dataset', 'binary_threshold')
     ########################################################################
     # list all data files
-    all_X_list = df['video_name']                       # all video file names
+    all_X_list = df['video_name']                        # all video file names
     all_y_list = df['clinical TS Ex#1']                  # all video labels
+
+    if model_name == 'binary':
+        binary_labels = df
+        binary_labels.loc[binary_labels['clinical TS Ex#1'] < binary_threshold, 'clinical TS Ex#1'] = 0
+        binary_labels.loc[binary_labels['clinical TS Ex#1'] > binary_threshold, 'clinical TS Ex#1'] = 1
+        all_y_list = binary_labels['clinical TS Ex#1']
 
     # transform the labels by taking Log10
     # log_all_y_list = np.log10(all_y_list)
@@ -189,21 +220,29 @@ def main():
     model.to(DEVICE)
     ########################################################################
     # Define the Loss function, optimizer, scheduler
+
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-4)
+
     if loss_fn == 'l1':
         print('Loss function: nn.L1Loss()')
         criterion = nn.L1Loss()
+    elif loss_fn == 'bce':
+        criterion = nn.BCEWithLogitsLoss()
+        optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
+    elif loss_fn =='cross_entropy':
+        criterion = nn.CrossEntropyLoss()
     else:
         print('Loss function: nn.MSELoss()')
         criterion = nn.MSELoss()
-
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-4)
 
     scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
 
     ########################################################################
     # Set up some numpy arrays to store the training/test loss/accuracy
     train_loss = np.zeros(num_epochs)
+    train_err = np.zeros(num_epochs)
     val_loss = np.zeros(num_epochs)
+    val_err = np.zeros(num_epochs)
 
     ########################################################################
     # Train the network
@@ -213,11 +252,11 @@ def main():
 
     start_time = time.time()
     for epoch in range(num_epochs):
-        train_loss[epoch] = train(epoch, model, train_loader, optimizer, criterion)
+        train_loss[epoch], train_err[epoch] = train(epoch, model, train_loader, optimizer, criterion)
         scheduler.step()
-
-        val_loss[epoch] = evaluate(model, valid_loader, criterion)
-        print("Epoch {}: Train loss: {} | Validation loss: {}".format(epoch + 1, train_loss[epoch], val_loss[epoch]))
+        val_loss[epoch], val_err[epoch] = evaluate(model, valid_loader, criterion)
+        print("Epoch {}: Train err: {}, Train loss: {} | Validation err: {}, Validation loss: {}".format(\
+            epoch + 1, train_err[epoch], train_loss[epoch], val_err[epoch], val_loss[epoch]))
 
     print('Finished Training')
     end_time = time.time()
@@ -225,12 +264,12 @@ def main():
     print("Total time elapsed: {:.2f} seconds".format(elapsed_time))
 
     # Train model with all training data:
-    final_train_loss = train(epoch, model, full_train_loader, optimizer, criterion)
-    print("Final Train loss: {}".format(final_train_loss))
+    final_train_loss, final_train_err = train(epoch, model, full_train_loader, optimizer, criterion)
+    print("Final Train Loss: {}, Final Train Error: {}".format(final_train_loss, final_train_err))
 
     # Test the final model
-    labels_list, outputs_list, test_loss = test(model, test_loader, criterion)
-    print("Final Test loss: {}".format(test_loss))
+    labels_list, outputs_list, test_loss, test_err = test(model, test_loader, criterion)
+    print("Final Test Loss: {}, Final Test Error: {}".format(test_loss, test_err))
 
     # Change to ouput directory and create a folder with timestamp
     output_path = config.get('dataset', 'result_output_path')

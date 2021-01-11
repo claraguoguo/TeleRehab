@@ -66,6 +66,7 @@ class Binary(nn.Module):
         x = F.relu(self.fc2(x))
         # x = F.dropout(x, p=self.drop_p, training=self.training)
         x = self.fc3(x)
+        x = x.squeeze(1)
         return x
 
 ## --------------------- end of 3D CNN module ---------------- ##

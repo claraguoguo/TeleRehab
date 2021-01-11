@@ -267,7 +267,7 @@ def main():
     df = pd.DataFrame({"epoch": epochs, "val_acc": val_acc})
     df.to_csv("val_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_name, learning_rate, num_epochs, bs, fps), index=False)
 
-    generate_result_plots(model_name, test_loss, test_acc, config)
+    generate_result_plots(model_name, test_loss, config, test_acc)
 
     # Create a scatterplot of test results
     plot_labels_and_outputs(labels_list, predict_list, config, model_name)

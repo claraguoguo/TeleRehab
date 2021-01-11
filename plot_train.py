@@ -4,7 +4,7 @@ import torch
 from util import *
 
 
-def load_csv(type, model_name, config):
+def load_csv(type, model_name, config, include_acc=False):
     """
     Given the type ('err'/'loss'), loads the appropriate CSV files to plot
 
@@ -23,15 +23,19 @@ def load_csv(type, model_name, config):
 
     train_file = 'train_{}_{}_{}_lr{}_epoch{}_bs{}_fps{}.csv'.format(model_path, type, loss_fn, lr, epoch, bs, fps)
     val_file = 'val_{}_{}_{}_lr{}_epoch{}_bs{}_fps{}.csv'.format(model_path, type, loss_fn, lr, epoch, bs, fps)
-    train_acc_file = "train_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_path, lr, epoch, bs, fps)
-    val_acc_file = "val_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_path, lr, epoch, bs, fps)
-
     train_data = pd.read_csv(train_file)
     val_data = pd.read_csv(val_file)
-    train_acc_data = pd.read_csv(train_acc_file)
-    val_acc_data = pd.read_csv(val_acc_file)
 
-    return train_data, val_data, train_acc_data, val_acc_data
+    if include_acc:
+        train_acc_file = "train_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_path, lr, epoch, bs, fps)
+        val_acc_file = "val_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_path, lr, epoch, bs, fps)
+
+        train_acc_data = pd.read_csv(train_acc_file)
+        val_acc_data = pd.read_csv(val_acc_file)
+
+        return train_data, val_data, train_acc_data, val_acc_data
+
+    return train_data, val_data
 
 
 def plot_graph(model_name, type, train_data, val_data, test_loss, config):
@@ -58,25 +62,30 @@ def plot_graph(model_name, type, train_data, val_data, test_loss, config):
     plt.close()
     return
 
-
-def generate_result_plots(model_name, test_loss, test_acc, config):
+def generate_result_plots(model_name, test_loss, config, test_acc=-1):
     ########################################################################
     # Loads the configuration for the experiment from the configuration file
     # Load the CSV files according to the current config
     # train_err_data, val_err_data = load_csv('err', model_path)
-    train_loss_data, val_loss_data, train_acc_data, val_acc_data = load_csv('loss', model_name, config)
+
+    # fetch and plot accuracy data, test_acc = -1 be default
+    if test_acc != -1:
+        train_loss_data, val_loss_data, train_acc_data, val_acc_data = load_csv('loss', model_name, config, include_acc=True)
+
+        # Print the final accuracy for the train/validation set from the CSV file
+        print("Final training acc: {0:.2f} | Final validation acc: {1:.2f} | Final Test acc: {2:.2f}".format(
+            train_acc_data["train_acc"].iloc[-1],
+            val_acc_data["val_acc"].iloc[-1], test_acc))
+
+        # Plot a train vs test accuracy graph
+        plot_graph(model_name, 'acc', train_acc_data, val_acc_data, test_acc, config)
+
+    else:
+        train_loss_data, val_loss_data = load_csv('loss', model_name, config)
 
     # Print the final loss/error for the train/validation set from the CSV file
-    # print("Final training error: {0:.3f}% | Final validation error: {1:.3f}%".format(train_err_data["train_err"].iloc[-1]*100, val_err_data["val_err"].iloc[-1]*100))
     print("Final training loss: {0:.5f} | Final validation loss: {1:.5f} | Final Test loss: {2:.5f}".format(train_loss_data["train_loss"].iloc[-1],
           val_loss_data["val_loss"].iloc[-1], test_loss))
 
-    print("Final training acc: {0:.2f} | Final validation acc: {1:.2f} | Final Test acc: {2:.2f}".format(
-        train_acc_data["train_acc"].iloc[-1],
-        val_acc_data["val_acc"].iloc[-1], test_acc))
-
-    # Plot a train vs test err/loss graph for this hyperparameter
-    # plot_graph(model_path, "err", train_err_data, val_err_data)
+    # Plot a train vs test loss graph for this hyperparameter
     plot_graph(model_name, 'loss', train_loss_data, val_loss_data, test_loss, config)
-
-    plot_graph(model_name, 'acc',  train_acc_data, val_acc_data, test_acc, config)

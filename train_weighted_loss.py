@@ -82,7 +82,6 @@ def train(epoch, model, loader, optimizer, criterion):
 
         # Zero the parameter gradients
         optimizer.zero_grad()
-        labels_list, outputs_list, test_loss, test_err = test(model, test_loader, criterion)
 
         # Forward pass, backward pass, and optimize
         outputs = model(inputs)

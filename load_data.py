@@ -18,7 +18,7 @@ class KiMoReDataLoader(object):
     def get_clinical_scores(self):
         ''' Get all clinical scores from KIMORE dataset
 
-        :return: A DataFrame (68 x 15) object that contains all the clinicial scores for all subjects
+        :return: A DataFrame (68 x 15) object that contains all the clinical scores for all subjects
 
                     clinical TS Ex#1  ...  clinical CF Ex#5
         Subject ID                    ...

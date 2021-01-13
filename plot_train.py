@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 import torch
@@ -99,6 +101,7 @@ def plot_ROC(fpr, tpr, roc_auc, n_classes, model_name, config):
     loss_fn = config.get(model_name, 'loss')
     fps = config.get('dataset', 'fps')
     lw = 2
+
     # First aggregate all false positive rates
     all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
     # Then interpolate all ROC curves at this points
@@ -116,10 +119,11 @@ def plot_ROC(fpr, tpr, roc_auc, n_classes, model_name, config):
 
     # Plot all ROC curves
     plt.figure()
-    plt.plot(fpr["micro"], tpr["micro"],
-            label='micro-average ROC curve (area = {0:0.2f})'
-                ''.format(roc_auc["micro"]),
-            color='deeppink', linestyle=':', linewidth=4)
+
+    # plt.plot(fpr["micro"], tpr["micro"],
+    #         label='micro-average ROC curve (area = {0:0.2f})'
+    #             ''.format(roc_auc["micro"]),
+    #         color='deeppink', linestyle=':', linewidth=4)
 
     plt.plot(fpr["macro"], tpr["macro"],
             label='macro-average ROC curve (area = {0:0.2f})'

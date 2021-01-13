@@ -3,6 +3,7 @@ videos/*
 data_tmp/*
 histogram_pic/
 frames_tmp/
+output_tmp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -2,15 +2,67 @@ import torch
 from torch.utils.data.sampler import SubsetRandomSampler
 import torchvision.transforms as transforms
 import os
-from dataset import CNN3D_Dataset
+from dataset import *
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.metrics import classification_report, ConfusionMatrixDisplay, confusion_matrix
+import configparser
 
 # from spatial_transforms import (Compose, Normalize, Scale, CenterCrop, ToTensor)
 # from temporal_transforms import LoopPadding
 
-import configparser
+def plot_confusion_matrix(cm, auc, model_name, config):
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+    disp = disp.plot()
+    disp.ax_.set_title("Confusion Matrix")
+    
+    epoch = config.getint(model_name, 'epoch')
+    plt.savefig("cm_auc_{}_epoch_{}.png".format(auc, epoch))
 
+def show_binary_classifier_metrics(y_true, y_pred, model_name, config):
+    print('\n Binary Classifier Metrics Results')
+    print('Total number of test cases: {}'.format(len(y_true)))
+
+    y_true = [int(a) for a in y_true]
+
+    cm = confusion_matrix(y_true, y_pred)
+    tn, fp, fn, tp = cm.ravel()
+
+    # True positive rate (sensitivity or recall)
+    tpr = tp / (tp + fn)
+    # False positive rate (fall-out)
+    fpr = fp / (fp + tn)
+    # Precision
+    precision = tp / (tp + fp)
+    # True negatvie tate (specificity)
+    tnr = 1 - fpr
+    # F1 score
+    f1 = 2 * tp / (2 * tp + fp + fn)
+    # ROC-AUC for binary classification
+    auc = (tpr + tnr) / 2
+    # MCC
+    mcc = (tp * tn - fp * fn) / np.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+
+    # Save metrics results into a text file
+    with open("Metrics_Results.txt", "w") as text_file:
+        print(f"Labels:  {y_true} \nOutputs: {y_pred} \n", file=text_file)
+        print(f"True positive: {tp}", file=text_file)
+        print(f"False positive: {fp}", file=text_file)
+        print(f"True negative: {tn}", file=text_file)
+        print(f"False negative: {fn}", file=text_file)
+
+        print(f"True positive rate (recall): {tpr}", file=text_file)
+        print(f"False positive rate: {fpr}", file=text_file)
+        print(f"Precision: {precision}", file=text_file)
+        print(f"True negative rate: {tnr}", file=text_file)
+        print(f"F1: {f1}", file=text_file)
+        print(f"MCC: {mcc}", file=text_file)
+        print(f"ROC-AUC: {auc}", file=text_file)
+
+        print(classification_report(y_true, y_pred, target_names=['class 0', 'class 1']), file=text_file)
+
+    # generate confusion matrix figure
+    plot_confusion_matrix(cm, auc, model_name, config)
 
 def plot_labels_and_outputs(labels, outputs, config, model_name):
 
@@ -125,6 +177,44 @@ def get_data_loader(train_list, test_list, train_label, test_label, model_name, 
     train_set = CNN3D_Dataset(config, train_list, train_label, max_frames, spatial_transform=spatial_transform,
                               temporal_transform=temporal_transform)
     valid_set = CNN3D_Dataset(config, test_list, test_label, max_frames, spatial_transform=spatial_transform,
+                              temporal_transform=temporal_transform)
+    # train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
+    #                                            shuffle=False, num_workers=n_threads, pin_memory=True, drop_last=True),
+    # valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size,
+    #                                            shuffle=False, num_workers=n_threads, pin_memory=True, drop_last=True)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
+                                              shuffle=False, num_workers=n_threads, pin_memory=True)
+    valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size,
+                                              shuffle=False, num_workers=n_threads, pin_memory=True)
+    return train_loader, valid_loader
+
+
+################################### LOADING DATA with Weighted Loss################################### 
+def get_weighted_loss_data_loader(train_list, test_list, train_label, test_label, model_name, max_frames, config):
+    # Use the mean and std 
+    # https://pytorch.org/docs/stable/torchvision/models.html
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+    frame_size = config.getint(model_name, 'frame_size')
+    ## sample_duration will be the number of frames = duration of video in seconds
+    # opt.sample_duration = len(os.listdir("tmp"))
+    # TODO: Normalize Image (center / min-max) & Map rgb --> [0, 1]
+    spatial_transform = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize(frame_size),
+        transforms.CenterCrop(frame_size),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=mean, std=std)])
+
+    ## temporal_transform = LoopPadding(opt.sample_duration)
+    temporal_transform = None
+
+    batch_size = config.getint(model_name, 'batch_size')
+    n_threads = config.getint(model_name, 'n_threads')
+
+    train_set = Weighted_Loss_Dataset(config, train_list, train_label, max_frames, spatial_transform=spatial_transform,
+                              temporal_transform=temporal_transform)
+    valid_set = Weighted_Loss_Dataset(config, test_list, test_label, max_frames, spatial_transform=spatial_transform,
                               temporal_transform=temporal_transform)
     # train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
     #                                            shuffle=False, num_workers=n_threads, pin_memory=True, drop_last=True),

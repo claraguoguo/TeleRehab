@@ -1,5 +1,6 @@
 
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import label_binarize
 from sklearn import metrics
 import pandas as pd
 import numpy as np
@@ -12,6 +13,9 @@ from opts import parse_opts
 from load_data import KiMoReDataLoader
 from plot_train import *
 from util import *
+import time
+
+TIME_STAMP = time.strftime("%Y%m%d-%H%M%S")
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print('Using device:', DEVICE)
@@ -41,6 +45,10 @@ def test(model, loader, criterion):
     total_corr = 0.0
     total_labels = 0
     accuracy = 0
+
+    outputs_tensor = torch.empty((0,2))
+    binarized_labels = np.empty((0, 3), int)
+
     for i, data in enumerate(loader, 0):
         inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
         labels_list += labels.tolist()
@@ -49,9 +57,15 @@ def test(model, loader, criterion):
             # Get model outputs
             outputs = model(inputs)
             _, predict = torch.max(outputs, 1)
-            # outputs_list += outputs.flatten().tolist()
+
             # Append outputs with label = 1 to list
-            outputs_list += outputs[:, 1].flatten().tolist()
+            # outputs_list += outputs[:, 1].flatten().tolist()
+
+            # The following 2 variables are needed when calculated ROC-AUC
+            binaried_y = label_binarize(labels, classes=[0, 1, 2])
+            binarized_labels = np.concatenate((binarized_labels, binaried_y), 0)
+            outputs_tensor = torch.cat((outputs_tensor, outputs), 0)
+
             predict_list += predict.flatten().tolist()
             # Compute loss
             loss = criterion(outputs, labels.long())
@@ -70,7 +84,7 @@ def test(model, loader, criterion):
     print('testing predicts_list:')
     print(predict_list)
 
-    return labels_list, outputs_list, predict_list, loss, accuracy
+    return binarized_labels, outputs_tensor, labels_list, predict_list, loss, accuracy
 
 def train(epoch, model, loader, optimizer, criterion):
     total_train_loss = 0.0
@@ -225,50 +239,64 @@ def main():
     for epoch in range(num_epochs):
         train_loss[epoch], train_acc[epoch] = train(epoch, model, train_loader, optimizer, criterion)
         scheduler.step()
-        _, _, _, val_loss[epoch], val_acc[epoch] = test(model, valid_loader, criterion)
+        _, _, _, _, val_loss[epoch], val_acc[epoch] = test(model, valid_loader, criterion)
         print("Epoch {}: Train acc: {}, Train loss: {} | Valid acc: {}, Valid loss: {}".format(\
             epoch + 1, train_acc[epoch], train_loss[epoch], val_acc[epoch], val_loss[epoch]))
-
+    
     print('Finished Training')
     end_time = time.time()
     elapsed_time = end_time - start_time
     print("Total time elapsed: {:.2f} seconds".format(elapsed_time))
-
+    
     # Train model with all training data:
     print('Training model with all data...')
     final_train_loss, final_train_acc = train(epoch, model, full_train_loader, optimizer, criterion)
     print("Final Train Loss: {:0.2f}, Final Train Accuracy: {:0.2f}".format(final_train_loss, final_train_acc))
 
     # Test the final model
-    labels_list, outputs_list, predict_list, test_loss, test_acc = test(model, test_loader, criterion)
+    binarized_labels, outputs_tensor, labels_list, predict_list, test_loss, test_acc = test(model, test_loader, criterion)
     print("Final Test Loss: {:0.2f}, Final Test Accuracy: {:0.2f}".format(test_loss, test_acc))
+
+    # Change to output directory and create a folder with timestamp
+    output_path = config.get('dataset', 'result_output_path')
+
+    # Create a directory with TIME_STAMP and model_name to store all outputs
+    output_path = os.path.join(output_path, TIME_STAMP + "_" + model_name)
+    try:
+        os.mkdir(output_path)
+        os.chdir(output_path)
+    except OSError:
+        print("Creation of the directory %s failed!" % output_path)
+
+    # show metrics evaluated on binary classifier
+    show_binary_classifier_metrics(labels_list, predict_list, model_name, config)
 
     # Compute ROC curve and ROC area for each class
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
-    n_classes = 2
-    for i in range(n_classes):
-        fpr[i], tpr[i], _ = metrics.roc_curve(np.asarray(labels_list), np.asarray(outputs_list))
-        roc_auc[i] = metrics.auc(fpr[i], tpr[i])
 
-        # Compute micro-average ROC curve and ROC area
-        fpr["micro"], tpr["micro"], _ = metrics.roc_curve(np.asarray(labels_list), np.asarray(outputs_list))
-        roc_auc["micro"] = metrics.auc(fpr["micro"], tpr["micro"])
+    for i in range(N_CLASSES):
+        i_labels = binarized_labels[:, i]
+        i_outputs = np.asarray(outputs_tensor[:, i].flatten().tolist())
+
+        fpr[i], tpr[i], _ = metrics.roc_curve(i_labels, i_outputs, pos_label=i)
+        # roc_auc[i] = metrics.auc(fpr[i], tpr[i])
+
         # calculate AUC
-        auc = metrics.roc_auc_score(np.asarray(labels_list), np.asarray(outputs_list))
-        print('Class: {} |  AUC: {:0.3f}'.format(i, auc))
+        roc_auc[i] = metrics.roc_auc_score(i_labels, i_outputs)
+        print('Class: {} |  ROC_AUC_SCORE: {:0.3f}'.format(i, roc_auc[i]))
 
-    plot_ROC(fpr, tpr, roc_auc, n_classes, model_name, config)
+    # # Compute micro-average ROC curve and ROC area
+    # fpr["micro"], tpr["micro"], _ = metrics.roc_curve(binarized_labels[:,:-1], outputs_tensor.flatten().tolist())
+    # roc_auc["micro"] = metrics.auc(fpr["micro"], tpr["micro"])
 
-    # Change to ouput directory and create a folder with timestamp
-    output_path = config.get('dataset', 'result_output_path')
-    change_dir(output_path)
+    plot_ROC(fpr, tpr, roc_auc, N_CLASSES, model_name, config)
 
     # Save the model
     should_save_model = config.getint('output', 'should_save_model')
     if should_save_model:
-        torch.save(model.state_dict(), model_name)
+        torch.save(model.state_dict(), model_name+'.pk')
 
     # Write the train/test loss/err into CSV file for plotting later
     epochs = np.arange(1, num_epochs + 1)
@@ -290,8 +318,7 @@ def main():
     generate_result_plots(model_name, test_loss, config, test_acc)
 
     # Create a scatterplot of test results
-    plot_labels_and_outputs(labels_list, predict_list, config, model_name)
-
+    # plot_labels_and_outputs(labels_list, predict_list, config, model_name)
 
     plt.close()
 if __name__ == '__main__':

@@ -12,7 +12,7 @@ import configparser
 # from temporal_transforms import LoopPadding
 
 def plot_confusion_matrix(cm, auc, model_name, config):
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['class 0', 'class 1'])
     disp = disp.plot()
     disp.ax_.set_title("Confusion Matrix")
     

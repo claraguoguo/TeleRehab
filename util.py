@@ -8,6 +8,7 @@ import numpy as np
 from sklearn.metrics import classification_report, ConfusionMatrixDisplay, confusion_matrix
 import configparser
 from sklearn import metrics
+import math
 
 # from spatial_transforms import (Compose, Normalize, Scale, CenterCrop, ToTensor)
 # from temporal_transforms import LoopPadding
@@ -39,13 +40,9 @@ def show_binary_classifier_metrics(y_true, y_pred, y_pred_prob, model_name, conf
     tnr = 1 - fpr
     # F1 score
     f1 = 2 * tp / (2 * tp + fp + fn)
-
     # ROC-AUC for binary classification
-    a, b, _ = metrics.roc_curve(y_true, y_pred_prob)
-    # TODO: remove print statement
-    print(f'metrics.roc_curve: fpr = {a} | tpr = {b}')
     roc_auc = metrics.roc_auc_score(y_true, y_pred_prob)
-
+    roc_auc = round(roc_auc, 2)
     # MCC
     mcc = (tp * tn - fp * fn) / np.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
 

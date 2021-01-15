@@ -34,7 +34,7 @@ def show_binary_classifier_metrics(y_true, y_pred, model_name, config):
     fpr = fp / (fp + tn)
     # Precision
     precision = tp / (tp + fp)
-    # True negatvie tate (specificity)
+    # True negative rate (specificity)
     tnr = 1 - fpr
     # F1 score
     f1 = 2 * tp / (2 * tp + fp + fn)
@@ -44,7 +44,15 @@ def show_binary_classifier_metrics(y_true, y_pred, model_name, config):
     mcc = (tp * tn - fp * fn) / np.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
 
     # Save metrics results into a text file
-    with open("Metrics_Results.txt", "w") as text_file:
+    content = ''
+    file_name = "Metrics_Results.txt"
+
+    should_use_weighted_loss = config.getint(model_name, 'should_use_weighted_loss')
+    if should_use_weighted_loss:
+        content = 'With Weighted Loss: \n'
+
+    with open(file_name, "w") as text_file:
+        print(content, file=text_file)
         print(f"Labels:  {y_true} \nOutputs: {y_pred} \n", file=text_file)
         print(f"True positive: {tp}", file=text_file)
         print(f"False positive: {fp}", file=text_file)
@@ -152,7 +160,8 @@ def normalize_label(labels):
 
 
 ################################### LOADING DATA ################################### 
-def get_data_loader(train_list, test_list, train_label, test_label, model_name, max_frames, config):
+def get_data_loader(train_list, test_list, train_label, test_label,\
+                    model_name, max_frames, config):
     # Use the mean and std 
     # https://pytorch.org/docs/stable/torchvision/models.html
     mean = [0.485, 0.456, 0.406]
@@ -173,15 +182,42 @@ def get_data_loader(train_list, test_list, train_label, test_label, model_name, 
 
     batch_size = config.getint(model_name, 'batch_size')
     n_threads = config.getint(model_name, 'n_threads')
+    train_set = CNN3D_Dataset(config, train_list, train_label, max_frames, spatial_transform=spatial_transform,
+                              temporal_transform=temporal_transform, weights=label_to_weights)
+    valid_set = CNN3D_Dataset(config, test_list, test_label, max_frames, spatial_transform=spatial_transform,
+                              temporal_transform=temporal_transform, weights=None)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
+                                              shuffle=False, num_workers=n_threads, pin_memory=True)
+    valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size,
+                                              shuffle=False, num_workers=n_threads, pin_memory=True)
+    return train_loader, valid_loader
 
+    ################################### LOADING DATA ################################### 
+def get_data_loader(train_list, test_list, train_label, test_label, model_name, max_frames, config ):
+    # Use the mean and std 
+    # https://pytorch.org/docs/stable/torchvision/models.html
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+    frame_size = config.getint(model_name, 'frame_size')
+    ## sample_duration will be the number of frames = duration of video in seconds
+    # opt.sample_duration = len(os.listdir("tmp"))
+    # TODO: Normalize Image (center / min-max) & Map rgb --> [0, 1]
+    spatial_transform = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize(frame_size),
+        transforms.CenterCrop(frame_size),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=mean, std=std)])
+
+    ## temporal_transform = LoopPadding(opt.sample_duration)
+    temporal_transform = None
+
+    batch_size = config.getint(model_name, 'batch_size')
+    n_threads = config.getint(model_name, 'n_threads')
     train_set = CNN3D_Dataset(config, train_list, train_label, max_frames, spatial_transform=spatial_transform,
                               temporal_transform=temporal_transform)
     valid_set = CNN3D_Dataset(config, test_list, test_label, max_frames, spatial_transform=spatial_transform,
                               temporal_transform=temporal_transform)
-    # train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
-    #                                            shuffle=False, num_workers=n_threads, pin_memory=True, drop_last=True),
-    # valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size,
-    #                                            shuffle=False, num_workers=n_threads, pin_memory=True, drop_last=True)
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
                                               shuffle=False, num_workers=n_threads, pin_memory=True)
     valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size,
@@ -189,8 +225,11 @@ def get_data_loader(train_list, test_list, train_label, test_label, model_name, 
     return train_loader, valid_loader
 
 
-################################### LOADING DATA with Weighted Loss################################### 
-def get_weighted_loss_data_loader(train_list, test_list, train_label, test_label, model_name, max_frames, config):
+
+
+
+def get_weighted_loss_data_loader(train_list, test_list, train_label, test_label,
+                                  model_name, max_frames, config, label_to_weights):
     # Use the mean and std 
     # https://pytorch.org/docs/stable/torchvision/models.html
     mean = [0.485, 0.456, 0.406]
@@ -211,15 +250,10 @@ def get_weighted_loss_data_loader(train_list, test_list, train_label, test_label
 
     batch_size = config.getint(model_name, 'batch_size')
     n_threads = config.getint(model_name, 'n_threads')
-
     train_set = Weighted_Loss_Dataset(config, train_list, train_label, max_frames, spatial_transform=spatial_transform,
-                              temporal_transform=temporal_transform)
+                                      temporal_transform=temporal_transform, weights=label_to_weights)
     valid_set = Weighted_Loss_Dataset(config, test_list, test_label, max_frames, spatial_transform=spatial_transform,
-                              temporal_transform=temporal_transform)
-    # train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
-    #                                            shuffle=False, num_workers=n_threads, pin_memory=True, drop_last=True),
-    # valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size,
-    #                                            shuffle=False, num_workers=n_threads, pin_memory=True, drop_last=True)
+                                      temporal_transform=temporal_transform, weights=label_to_weights)
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
                                               shuffle=False, num_workers=n_threads, pin_memory=True)
     valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size,

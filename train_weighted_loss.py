@@ -13,9 +13,13 @@ from opts import parse_opts
 from load_data import KiMoReDataLoader
 from plot_train import *
 from util import *
-import time
+from datetime import datetime
+from pytz import timezone
 
-TIME_STAMP = time.strftime("%Y%m%d-%H%M%S")
+# Get current (EST) time stamp
+fmt = "%Y-%m-%d %H:%M:%S %Z%z"
+now_time = datetime.now(timezone('US/Eastern'))
+TIME_STAMP = now_time.strftime("%Y_%m_%d-%H_%M")
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print('Using device:', DEVICE)
@@ -26,6 +30,24 @@ if DEVICE.type == 'cuda':
     print('Memory Usage:')
     print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
     print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+
+# Weighted Loss parameters and functions
+N_CLASSES = 2
+
+def log_softmax(x):
+    return x - torch.logsumexp(x, dim=1, keepdim=True)
+
+def cross_entropy_loss(outputs, targets, weights=None):
+    #https://discuss.pytorch.org/t/how-to-weight-the-loss/66372/3
+    num_examples = targets.shape[0]
+    batch_size = outputs.shape[0]
+    if weights is None:
+        weights = (torch.ones(num_examples)/num_examples).to(DEVICE)
+
+    outputs = log_softmax(outputs)
+    outputs = outputs[range(batch_size), targets.type(torch.LongTensor)]
+    outputs = outputs * weights / weights.sum()
+    return - torch.sum(outputs)
 
 def test(model, loader, criterion):
     """ Test the model on the test set.
@@ -46,11 +68,11 @@ def test(model, loader, criterion):
     total_labels = 0
     accuracy = 0
 
-    outputs_tensor = torch.empty((0,2))
+    outputs_tensor = torch.empty((0,2)).to(DEVICE)
     binarized_labels = np.empty((0, 3), int)
 
     for i, data in enumerate(loader, 0):
-        inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
+        inputs, labels, _ = data[0].to(DEVICE), data[1].to(DEVICE), data[2].to(DEVICE)
         labels_list += labels.tolist()
         with torch.no_grad():
             model.eval()
@@ -63,12 +85,18 @@ def test(model, loader, criterion):
 
             # The following 2 variables are needed when calculated ROC-AUC
             binaried_y = label_binarize(labels, classes=[0, 1, 2])
-            binarized_labels = np.concatenate((binarized_labels, binaried_y), 0)
+            if DEVICE.type == 'cpu':
+                binarized_labels = np.concatenate((binarized_labels, binaried_y), 0)
+            else:
+                binarized_labels = np.concatenate((binarized_labels.view(-1).cpu(), binaried_y), 0)
             outputs_tensor = torch.cat((outputs_tensor, outputs), 0)
 
             predict_list += predict.flatten().tolist()
+
             # Compute loss
-            loss = criterion(outputs, labels.long())
+            old_loss = criterion(outputs, labels.long())
+            loss = cross_entropy_loss(outputs, labels, weights=None))
+            print(f'loss = {old_loss.item()} | customized loss = {loss.item()}')
 
             total_corr += torch.sum(predict == labels.data)
             total_labels += len(labels)
@@ -86,7 +114,7 @@ def test(model, loader, criterion):
 
     return binarized_labels, outputs_tensor, labels_list, predict_list, loss, accuracy
 
-def train(epoch, model, loader, optimizer, criterion):
+def train(epoch, model, loader, optimizer, criterion, should_use_weighted_loss):
     total_train_loss = 0.0
     total_train_corr = 0.0
     counter = 0 
@@ -95,7 +123,7 @@ def train(epoch, model, loader, optimizer, criterion):
     for i, data in enumerate(loader, 0):
         model.train()
         # Get the inputs
-        inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
+        inputs, labels, weights = data[0].to(DEVICE), data[1].to(DEVICE), data[2].to(DEVICE)
 
         # Zero the parameter gradients
         optimizer.zero_grad()
@@ -105,7 +133,14 @@ def train(epoch, model, loader, optimizer, criterion):
         _, predict = torch.max(outputs, 1)
         print(f'Epoch: {epoch}, Batch: {counter}, \npredict: {predict}, \nlabels: {labels.data.T}')
         counter += 1
-        loss = criterion(outputs, labels.long())
+
+        # Use customized cross_entropy_loss func for weighted loss
+        if should_use_weighted_loss:
+            loss = cross_entropy_loss(outputs, labels, weights)
+        else:
+            loss = cross_entropy_loss(outputs, labels, weights=None)
+        print("Weighted Loss: {:0.4f} | Loss: {:0.4f}".format(
+            cross_entropy_loss(outputs, labels, weights).item(), cross_entropy_loss(outputs, labels, None).item()))
         loss.backward()
         optimizer.step()
 
@@ -162,6 +197,7 @@ def main():
     learning_rate = config.getfloat(model_name, 'lr')
     test_size = config.getfloat('dataset', 'test_size')
     bs = config.getint(model_name, 'batch_size')
+    should_use_weighted_loss = config.getint(model_name, 'should_use_weighted_loss')
 
     binary_threshold = config.getint('dataset', 'binary_threshold')
     ########################################################################
@@ -191,23 +227,37 @@ def main():
     train_list, valid_list, train_label, valid_label = \
         train_test_split(full_train_list, full_train_label, test_size=0.1, random_state=seed)
 
-    # Obtain the PyTorch data loader objects to load batches of the datasets
-    full_train_loader, test_loader = get_data_loader(full_train_list, test_list, full_train_label,
-                                                     test_label, model_name, max_video_sec, config)
+    ########################################################################
+    # WEIGHTED LOSS
+    # Define weights for each class (used when calculated weighted loss)
+    num_train_dp = full_train_list.shape[0]
+    beta = (num_train_dp - 1) / num_train_dp
+    num_label_0 = full_train_label[full_train_label==0].count()
+    num_label_1 = full_train_label[full_train_label==1].count()
 
-    train_loader, valid_loader = get_data_loader(train_list, valid_list, train_label, valid_label,
-                                                 model_name, max_video_sec, config)
+    assert (num_label_0 + num_label_1) == num_train_dp
+
+    label_to_weights = {
+        0: (1 - beta) / (1 - beta ** num_label_0),
+        1: (1 - beta) / (1 - beta ** num_label_1)
+    }
+
+    # Obtain the PyTorch data loader objects to load batches of the datasets
+    full_train_loader, test_loader = get_weighted_loss_data_loader(full_train_list, test_list, full_train_label, test_label,
+                                                     model_name, max_video_sec, config, label_to_weights)
+
+    train_loader, valid_loader = get_weighted_loss_data_loader(train_list, valid_list, train_label, valid_label,
+                                                 model_name, max_video_sec, config, label_to_weights)
 
     ########################################################################
     # Define a Convolutional Neural Network, defined in models
     model = generate_model(model_name, max_video_sec, config)
     # Load model on GPU
     model.to(DEVICE)
+
     ########################################################################
     # Define the Loss function, optimizer, scheduler
-
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-4)
-
     if loss_fn == 'l1':
         print('Loss function: nn.L1Loss()')
         criterion = nn.L1Loss()
@@ -237,20 +287,20 @@ def main():
 
     start_time = time.time()
     for epoch in range(num_epochs):
-        train_loss[epoch], train_acc[epoch] = train(epoch, model, train_loader, optimizer, criterion)
+        train_loss[epoch], train_acc[epoch] = train(epoch, model, train_loader, optimizer, criterion, should_use_weighted_loss)
         scheduler.step()
         _, _, _, _, val_loss[epoch], val_acc[epoch] = test(model, valid_loader, criterion)
         print("Epoch {}: Train acc: {}, Train loss: {} | Valid acc: {}, Valid loss: {}".format(\
             epoch + 1, train_acc[epoch], train_loss[epoch], val_acc[epoch], val_loss[epoch]))
-    
+
     print('Finished Training')
     end_time = time.time()
     elapsed_time = end_time - start_time
     print("Total time elapsed: {:.2f} seconds".format(elapsed_time))
-    
+
     # Train model with all training data:
     print('Training model with all data...')
-    final_train_loss, final_train_acc = train(epoch, model, full_train_loader, optimizer, criterion)
+    final_train_loss, final_train_acc = train(epoch, model, full_train_loader, optimizer, criterion, should_use_weighted_loss)
     print("Final Train Loss: {:0.2f}, Final Train Accuracy: {:0.2f}".format(final_train_loss, final_train_acc))
 
     # Test the final model
@@ -262,6 +312,9 @@ def main():
 
     # Create a directory with TIME_STAMP and model_name to store all outputs
     output_path = os.path.join(output_path, TIME_STAMP + "_" + model_name)
+    if should_use_weighted_loss:
+        output_path += '_weighted'
+
     try:
         os.mkdir(output_path)
         os.chdir(output_path)
@@ -291,12 +344,15 @@ def main():
     # fpr["micro"], tpr["micro"], _ = metrics.roc_curve(binarized_labels[:,:-1], outputs_tensor.flatten().tolist())
     # roc_auc["micro"] = metrics.auc(fpr["micro"], tpr["micro"])
 
-    plot_ROC(fpr, tpr, roc_auc, N_CLASSES, model_name, config)
+    plot_ROC(fpr, tpr, roc_auc, N_CLASSES, model_name, config, specific_class=1)
 
     # Save the model
     should_save_model = config.getint('output', 'should_save_model')
     if should_save_model:
-        torch.save(model.state_dict(), model_name+'.pk')
+        saved_model_name = f'{model_name}_epoch{epoch}.pk'
+        if should_use_weighted_loss:
+            saved_model_name = 'weighted_' + saved_model_name
+        torch.save(model.state_dict(), saved_model_name)
 
     # Write the train/test loss/err into CSV file for plotting later
     epochs = np.arange(1, num_epochs + 1)

@@ -84,11 +84,11 @@ def test(model, loader, criterion):
             # outputs_list += outputs[:, 1].flatten().tolist()
 
             # The following 2 variables are needed when calculated ROC-AUC
-            binaried_y = label_binarize(labels, classes=[0, 1, 2])
             if DEVICE.type == 'cpu':
-                binarized_labels = np.concatenate((binarized_labels, binaried_y), 0)
+                binaried_y = label_binarize(labels, classes=[0, 1, 2])
             else:
-                binarized_labels = np.concatenate((binarized_labels.view(-1).cpu(), binaried_y), 0)
+                binaried_y = label_binarize(labels.view(-1).cpu(), classes=[0, 1, 2])
+            binarized_labels = np.concatenate((binarized_labels, binaried_y), 0)
             outputs_tensor = torch.cat((outputs_tensor, outputs), 0)
 
             predict_list += predict.flatten().tolist()
@@ -131,7 +131,7 @@ def train(epoch, model, loader, optimizer, criterion, should_use_weighted_loss):
         # Forward pass, backward pass, and optimize
         outputs = model(inputs)
         _, predict = torch.max(outputs, 1)
-        print(f'Epoch: {epoch}, Batch: {counter}, \npredict: {predict}, \nlabels: {labels.data.T}')
+        print(f'Epoch: {epoch}, Batch: {counter}, \nlabels: {labels.data.T} \noutputs: {predict}')
         counter += 1
 
         # Use customized cross_entropy_loss func for weighted loss

@@ -5,6 +5,11 @@ histogram_pic/
 frames_tmp/
 output_tmp/
 
+GPP_df
+RGB_df
+dataframe
+tmp.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

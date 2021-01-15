@@ -349,7 +349,7 @@ def main():
     # Save the model
     should_save_model = config.getint('output', 'should_save_model')
     if should_save_model:
-        saved_model_name = f'{model_name}_epoch{epoch}.pk'
+        saved_model_name = f'{model_name}_epoch{num_epochs}.pk'
         if should_use_weighted_loss:
             saved_model_name = 'weighted_' + saved_model_name
         torch.save(model.state_dict(), saved_model_name)

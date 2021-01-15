@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import classification_report, ConfusionMatrixDisplay, confusion_matrix
 import configparser
+from sklearn import metrics
 
 # from spatial_transforms import (Compose, Normalize, Scale, CenterCrop, ToTensor)
 # from temporal_transforms import LoopPadding
@@ -19,7 +20,7 @@ def plot_confusion_matrix(cm, auc, model_name, config):
     epoch = config.getint(model_name, 'epoch')
     plt.savefig("cm_auc_{}_epoch_{}.png".format(auc, epoch))
 
-def show_binary_classifier_metrics(y_true, y_pred, model_name, config):
+def show_binary_classifier_metrics(y_true, y_pred, y_pred_prob, model_name, config):
     print('\n Binary Classifier Metrics Results')
     print('Total number of test cases: {}'.format(len(y_true)))
 
@@ -38,8 +39,13 @@ def show_binary_classifier_metrics(y_true, y_pred, model_name, config):
     tnr = 1 - fpr
     # F1 score
     f1 = 2 * tp / (2 * tp + fp + fn)
+
     # ROC-AUC for binary classification
-    auc = (tpr + tnr) / 2
+    a, b, _ = metrics.roc_curve(y_true, y_pred_prob)
+    # TODO: remove print statement
+    print(f'metrics.roc_curve: fpr = {a} | tpr = {b}')
+    roc_auc = metrics.roc_auc_score(y_true, y_pred_prob)
+
     # MCC
     mcc = (tp * tn - fp * fn) / np.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
 
@@ -65,12 +71,12 @@ def show_binary_classifier_metrics(y_true, y_pred, model_name, config):
         print(f"True negative rate: {tnr}", file=text_file)
         print(f"F1: {f1}", file=text_file)
         print(f"MCC: {mcc}", file=text_file)
-        print(f"ROC-AUC: {auc}", file=text_file)
+        print(f"ROC-AUC: {roc_auc}", file=text_file)
 
         print(classification_report(y_true, y_pred, target_names=['class 0', 'class 1']), file=text_file)
 
     # generate confusion matrix figure
-    plot_confusion_matrix(cm, auc, model_name, config)
+    plot_confusion_matrix(cm, roc_auc, model_name, config)
 
 def plot_labels_and_outputs(labels, outputs, config, model_name):
 

@@ -1,7 +1,6 @@
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import label_binarize
-from sklearn import metrics
 import pandas as pd
 import numpy as np
 import time
@@ -322,7 +321,8 @@ def main():
         print("Creation of the directory %s failed!" % output_path)
 
     # show metrics evaluated on binary classifier
-    show_binary_classifier_metrics(labels_list, predict_list, model_name, config)
+    pos_prob = np.asarray(outputs_tensor[:, 1].flatten().tolist())      # predicted possibilities for Class 1
+    show_binary_classifier_metrics(labels_list, predict_list, pos_prob, model_name, config)
 
     # Compute ROC curve and ROC area for each class
     fpr = dict()

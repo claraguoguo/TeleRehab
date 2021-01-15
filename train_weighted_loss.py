@@ -95,7 +95,7 @@ def test(model, loader, criterion):
 
             # Compute loss
             old_loss = criterion(outputs, labels.long())
-            loss = cross_entropy_loss(outputs, labels, weights=None))
+            loss = cross_entropy_loss(outputs, labels, weights=None)
             print(f'loss = {old_loss.item()} | customized loss = {loss.item()}')
 
             total_corr += torch.sum(predict == labels.data)

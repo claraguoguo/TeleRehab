@@ -15,9 +15,9 @@ def conv3D_output_size(img_size, padding, kernel_size, stride):
                 np.floor((img_size[2] + 2 * padding[2] - (kernel_size[2])) / stride[2] + 1).astype(int))
     return outshape
 
-class Binary(nn.Module):
+class Binary_CNN3d(nn.Module):
     def __init__(self, t_dim=120, img_x=90, img_y=120, drop_p=0.2, fc_hidden1=256, fc_hidden2=128):
-        super(Binary, self).__init__()
+        super(Binary_CNN3d, self).__init__()
 
         # set video dimension
         self.t_dim = t_dim

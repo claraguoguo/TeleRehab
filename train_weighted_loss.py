@@ -204,7 +204,7 @@ def main():
     all_X_list = df['video_name']                        # all video file names
     all_y_list = df['clinical TS Ex#1']                  # all video labels
 
-    if model_name == 'binary':
+    if 'binary' in model_name:
         binary_labels = df
         binary_labels.loc[binary_labels['clinical TS Ex#1'] < binary_threshold, 'clinical TS Ex#1'] = 0
         binary_labels.loc[binary_labels['clinical TS Ex#1'] > binary_threshold, 'clinical TS Ex#1'] = 1

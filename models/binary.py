@@ -48,6 +48,7 @@ class Binary_CNN3d(nn.Module):
                              self.fc_hidden1)  # fully connected hidden layer
         self.fc2 = nn.Linear(self.fc_hidden1, self.fc_hidden2)
         self.fc3 = nn.Linear(self.fc_hidden2, 2)  # fully connected layer, output = multi-classes
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x_3d):
         # Conv 1
@@ -66,7 +67,7 @@ class Binary_CNN3d(nn.Module):
         x = F.relu(self.fc2(x))
         # x = F.dropout(x, p=self.drop_p, training=self.training)
         x = self.fc3(x)
-        x = x.squeeze(1)
+        x = self.sigmoid(x)
         return x
 
 ## --------------------- end of 3D CNN module ---------------- ##

@@ -10,9 +10,6 @@ import configparser
 from sklearn import metrics
 import math
 
-# from spatial_transforms import (Compose, Normalize, Scale, CenterCrop, ToTensor)
-# from temporal_transforms import LoopPadding
-
 def plot_confusion_matrix(cm, auc, model_name, config):
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['class 0', 'class 1'])
     disp = disp.plot()

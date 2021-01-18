@@ -1,6 +1,7 @@
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import label_binarize
+from sklearn.utils import class_weight
 import pandas as pd
 import numpy as np
 import time
@@ -113,7 +114,7 @@ def test(model, loader, criterion):
 
     return binarized_labels, outputs_tensor, labels_list, predict_list, loss, accuracy
 
-def train(epoch, model, loader, optimizer, criterion, should_use_weighted_loss):
+def train(epoch, model, loader, optimizer, criterion, should_use_weighted_loss, class_weights):
     total_train_loss = 0.0
     total_train_corr = 0.0
     counter = 0 
@@ -134,12 +135,19 @@ def train(epoch, model, loader, optimizer, criterion, should_use_weighted_loss):
         counter += 1
 
         # Use customized cross_entropy_loss func for weighted loss
+        # if should_use_weighted_loss:
+        #     loss = cross_entropy_loss(outputs, labels, weights)
+        # else:
+        #     loss = cross_entropy_loss(outputs, labels, weights=None)
+
         if should_use_weighted_loss:
-            loss = cross_entropy_loss(outputs, labels, weights)
+            m = nn.LogSoftmax(dim=1)
+            class_weights = torch.tensor(class_weights).to(DEVICE)
+            criterion = nn.NLLLoss(weight=class_weights.float())
+            loss = criterion(m(outputs), labels)
         else:
-            loss = cross_entropy_loss(outputs, labels, weights=None)
-        print("Weighted Loss: {:0.4f} | Loss: {:0.4f}".format(
-            cross_entropy_loss(outputs, labels, weights).item(), cross_entropy_loss(outputs, labels, None).item()))
+            loss = criterion(outputs, labels)
+
         loss.backward()
         optimizer.step()
 
@@ -208,7 +216,7 @@ def main():
         binary_labels = df
         binary_labels.loc[binary_labels['clinical TS Ex#1'] < binary_threshold, 'clinical TS Ex#1'] = 0
         binary_labels.loc[binary_labels['clinical TS Ex#1'] > binary_threshold, 'clinical TS Ex#1'] = 1
-        all_y_list = binary_labels['clinical TS Ex#1']
+        all_y_list = binary_labels['clinical TS Ex#1'].astype(int)
 
     # transform the labels by taking Log10
     # log_all_y_list = np.log10(all_y_list)
@@ -241,6 +249,10 @@ def main():
         1: (1 - beta) / (1 - beta ** num_label_1)
     }
 
+    # Calculated class weights use sklearn build-in function
+    weights = class_weight.compute_class_weight('balanced', np.asarray([0, 1]), train_label.values)
+    assert (len(weights) == N_CLASSES)
+
     # Obtain the PyTorch data loader objects to load batches of the datasets
     full_train_loader, test_loader = get_weighted_loss_data_loader(full_train_list, test_list, full_train_label, test_label,
                                                      model_name, max_video_sec, config, label_to_weights)
@@ -263,7 +275,7 @@ def main():
     elif loss_fn == 'bce':
         criterion = nn.BCEWithLogitsLoss()
         optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
-    elif loss_fn =='cross_entropy':
+    elif loss_fn == 'cross_entropy':
         criterion = nn.CrossEntropyLoss()
     else:
         print('Loss function: nn.MSELoss()')
@@ -286,7 +298,7 @@ def main():
 
     start_time = time.time()
     for epoch in range(num_epochs):
-        train_loss[epoch], train_acc[epoch] = train(epoch, model, train_loader, optimizer, criterion, should_use_weighted_loss)
+        train_loss[epoch], train_acc[epoch] = train(epoch, model, train_loader, optimizer, criterion, should_use_weighted_loss, weights)
         scheduler.step()
         _, _, _, _, val_loss[epoch], val_acc[epoch] = test(model, valid_loader, criterion)
         print("Epoch {}: Train acc: {}, Train loss: {} | Valid acc: {}, Valid loss: {}".format(\
@@ -299,7 +311,7 @@ def main():
 
     # Train model with all training data:
     print('Training model with all data...')
-    final_train_loss, final_train_acc = train(epoch, model, full_train_loader, optimizer, criterion, should_use_weighted_loss)
+    final_train_loss, final_train_acc = train(epoch, model, full_train_loader, optimizer, criterion, should_use_weighted_loss, weights)
     print("Final Train Loss: {:0.2f}, Final Train Accuracy: {:0.2f}".format(final_train_loss, final_train_acc))
 
     # Test the final model
@@ -334,17 +346,17 @@ def main():
         i_outputs = np.asarray(outputs_tensor[:, i].flatten().tolist())
 
         fpr[i], tpr[i], _ = metrics.roc_curve(i_labels, i_outputs, pos_label=i)
-        # roc_auc[i] = metrics.auc(fpr[i], tpr[i])
+        auc_2 = metrics.auc(fpr[i], tpr[i])
 
         # calculate AUC
         roc_auc[i] = metrics.roc_auc_score(i_labels, i_outputs)
-        print('Class: {} |  ROC_AUC_SCORE: {:0.3f}'.format(i, roc_auc[i]))
+        print('Class: {} |  metrics.roc_curve: {:0.3f} | metrics.auc: {:0.3f}'.format(i, roc_auc[i], auc_2))
 
     # # Compute micro-average ROC curve and ROC area
     # fpr["micro"], tpr["micro"], _ = metrics.roc_curve(binarized_labels[:,:-1], outputs_tensor.flatten().tolist())
     # roc_auc["micro"] = metrics.auc(fpr["micro"], tpr["micro"])
 
-    plot_ROC(fpr, tpr, roc_auc, N_CLASSES, model_name, config, specific_class=1)
+    plot_ROC(fpr, tpr, roc_auc, N_CLASSES, model_name, config)
 
     # Save the model
     should_save_model = config.getint('output', 'should_save_model')

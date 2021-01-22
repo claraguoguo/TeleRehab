@@ -94,9 +94,7 @@ def test(model, loader, criterion):
             predict_list += predict.flatten().tolist()
 
             # Compute loss
-            old_loss = criterion(outputs, labels.long())
             loss = cross_entropy_loss(outputs, labels, weights=None)
-            print(f'loss = {old_loss.item()} | customized loss = {loss.item()}')
 
             total_corr += torch.sum(predict == labels.data)
             total_labels += len(labels)
@@ -135,18 +133,18 @@ def train(epoch, model, loader, optimizer, criterion, should_use_weighted_loss, 
         counter += 1
 
         # Use customized cross_entropy_loss func for weighted loss
-        # if should_use_weighted_loss:
-        #     loss = cross_entropy_loss(outputs, labels, weights)
-        # else:
-        #     loss = cross_entropy_loss(outputs, labels, weights=None)
-
         if should_use_weighted_loss:
-            m = nn.LogSoftmax(dim=1)
-            class_weights = torch.tensor(class_weights).to(DEVICE)
-            criterion = nn.NLLLoss(weight=class_weights.float())
-            loss = criterion(m(outputs), labels)
+            loss = cross_entropy_loss(outputs, labels, weights)
         else:
-            loss = criterion(outputs, labels)
+            loss = cross_entropy_loss(outputs, labels, weights=None)
+
+        # if should_use_weighted_loss:
+        #     m = nn.LogSoftmax(dim=1)
+        #     class_weights = torch.tensor(class_weights).to(DEVICE)
+        #     criterion = nn.NLLLoss(weight=class_weights.float())
+        #     loss = criterion(m(outputs), labels)
+        # else:
+        #     loss = criterion(outputs, labels)
 
         loss.backward()
         optimizer.step()

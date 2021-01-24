@@ -10,6 +10,18 @@ import configparser
 from sklearn import metrics
 import math
 
+def getSampler(labels, config):
+    binary_threshold = config.getint('dataset', 'binary_threshold')
+    unique_labels = np.sort(np.unique(labels))
+    class_counts = [(labels[labels == label]).shape[0] for label in unique_labels]
+    class_weights = [sum(class_counts) / class_counts[i] for i in range(len(class_counts))]
+    weights = torch.ones(labels.shape)
+    weights[labels == 0] = class_weights[0]
+    weights[labels == 1] = class_weights[1]
+    weights = torch.FloatTensor(weights)
+    sampler = torch.utils.data.sampler.WeightedRandomSampler(weights, len(weights))
+    return sampler
+
 def plot_confusion_matrix(cm, auc, model_name, config):
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['class 0', 'class 1'])
     disp = disp.plot()
@@ -254,8 +266,8 @@ def get_weighted_loss_data_loader(train_list, test_list, train_label, test_label
                                       temporal_transform=temporal_transform, weights=label_to_weights)
     valid_set = Weighted_Loss_Dataset(config, test_list, test_label, max_frames, spatial_transform=spatial_transform,
                                       temporal_transform=temporal_transform, weights=label_to_weights)
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
-                                              shuffle=False, num_workers=n_threads, pin_memory=True)
-    valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size,
-                                              shuffle=False, num_workers=n_threads, pin_memory=True)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=False, num_workers=n_threads,
+                                               pin_memory=True, sampler=getSampler(train_label, config))
+    valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size, shuffle=False, num_workers=n_threads,
+                                               pin_memory=True, sampler=getSampler(test_label, config))
     return train_loader, valid_loader

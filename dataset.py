@@ -17,10 +17,9 @@ class CNN3D_Dataset(data.Dataset):
         self.inputs = inputs
         self.spatial_transform = spatial_transform
         self.temporal_transform = temporal_transform
+        self.max_frames = max_frames
         # Note: fps MUST be s String, b/c skvideo.io.vread is expecting a string input.
         self.fps = config.get('dataset', 'fps')
-
-        self.max_frames = max_frames * int(self.fps)
 
     def __len__(self):
         "Denotes the total number of samples"
@@ -61,10 +60,9 @@ class Weighted_Loss_Dataset(data.Dataset):
         self.spatial_transform = spatial_transform
         self.temporal_transform = temporal_transform
         self.weights = weights
+        self.max_frames = max_frames
         # Note: fps MUST be s String, b/c skvideo.io.vread is expecting a string input.
         self.fps = config.get('dataset', 'fps')
-
-        self.max_frames = max_frames * int(self.fps)
 
     def __len__(self):
         "Denotes the total number of samples"

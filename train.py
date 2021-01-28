@@ -122,6 +122,8 @@ def main():
     ########################################################################
     # Extract Frames from videos
     should_use_local_df = config.getint('dataset', 'should_use_local_df')
+    fps = config.getint('dataset', 'fps')
+
     if should_use_local_df:
         print('Using local df')
         df_path = config.get('dataset', 'df_path')
@@ -136,9 +138,10 @@ def main():
         data_loader = KiMoReDataLoader(config)
         data_loader.load_data()
         df = data_loader.df
-        fps = config.getint('dataset', 'fps')
-        max_video_sec = data_loader.max_video_sec * fps
+        max_video_sec = data_loader.max_video_sec
 
+    # Maximum number of frames (will be used for zero padding)
+    max_frame_num = max_video_sec * fps
     ########################################################################
     # Fixed PyTorch random seed for reproducible result
     seed = config.getint('random_state', 'seed')
@@ -177,14 +180,14 @@ def main():
 
     # Obtain the PyTorch data loader objects to load batches of the datasets
     full_train_loader, test_loader = get_data_loader(full_train_list, test_list, full_train_label,
-                                                     test_label, model_name, max_video_sec, config)
+                                                     test_label, model_name, max_frame_num, config)
 
     train_loader, valid_loader = get_data_loader(train_list, valid_list, train_label, valid_label,
-                                                 model_name, max_video_sec, config)
+                                                 model_name, max_frame_num, config)
 
     ########################################################################
     # Define a Convolutional Neural Network, defined in models
-    model = generate_model(model_name, max_video_sec, config)
+    model = generate_model(model_name, max_frame_num, config)
     # Load model on GPU
     model.to(DEVICE)
     ########################################################################
@@ -243,7 +246,6 @@ def main():
 
     # Write the train/test loss/err into CSV file for plotting later
     epochs = np.arange(1, num_epochs + 1)
-    fps = config.get('dataset', 'fps')
 
     df = pd.DataFrame({"epoch": epochs, "train_loss": train_loss})
     df.to_csv("train_{}_loss_{}_lr{}_epoch{}_bs{}_fps{}.csv".format(model_name, loss_fn,

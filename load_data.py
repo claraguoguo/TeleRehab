@@ -14,6 +14,8 @@ class KiMoReDataLoader(object):
         self.config = config
         self.df = None
         self.max_video_sec = -1
+        self.exercise_type = self.config.get('dataset', 'exercise_type')
+
 
     def get_clinical_scores(self):
         ''' Get all clinical scores from KIMORE dataset
@@ -75,7 +77,6 @@ class KiMoReDataLoader(object):
         '''
         print('Extracting Video Names...')
 
-        exercise_type = self.config.get('dataset', 'exercise_type')
         video_data_dir = self.config.get('dataset', 'KIMORE_RGB_path')
         dataset_filter = self.config.get('dataset', 'dataset_filter')
 
@@ -88,7 +89,7 @@ class KiMoReDataLoader(object):
         for subdir, dirs, files in os.walk(video_data_dir):
             for file in files:
                 video_name = os.path.join(subdir, file)
-                if dataset_filter in video_name and exercise_type in video_name and video_name.endswith(".mp4"):
+                if dataset_filter in video_name and self.exercise_type in video_name and video_name.endswith(".mp4"):
 
                     # update max_video_length
                     duration = self.get_video_length(video_name)
@@ -110,7 +111,6 @@ class KiMoReDataLoader(object):
     def find_missing_data(self, scores, videos):
         # Extract Frames from videos
         extracted_frame_root = self.config.get('dataset', 'extracted_frame_path')
-        exercise_type = self.config.get('dataset', 'exercise_type')
         # output = os.path.join(extracted_frame_root, exercise_type)
 
         missing_score = []
@@ -121,9 +121,10 @@ class KiMoReDataLoader(object):
             if i not in videos:
                 missing_video.append(i)
 
-        output = os.path.join(extracted_frame_root,  exercise_type + "missing_data.txt")
+        output = os.path.join(extracted_frame_root,  self.exercise_type + "missing_data.txt")
         text_file = open(output, "w")
-        text_data = "{} \n Missing RGB Videos: \n {} \n \n Missing Scores: \n {} ".format(exercise_type, missing_video, missing_score)
+        text_data = "{} \n Missing RGB Videos: \n {} \n \n Missing Scores: \n {} ".format(
+            self.exercise_type, missing_video, missing_score)
         text_file.write(text_data)
         text_file.close()
 
@@ -134,7 +135,8 @@ class KiMoReDataLoader(object):
 
         # TODO: create method to clean NA data
         # NOTE: 'E_ID17' does not have scores
-        self.df = self.df.dropna(subset=['clinical TS Ex#1'])
+        exercise_label_text = self.config.get('dataset', 'exercise_label_text')
+        self.df = self.df.dropna(subset=[exercise_label_text])
 
         # add video names to df and set max_video_sec
         videos_list = self.get_video_names()
@@ -148,7 +150,7 @@ class KiMoReDataLoader(object):
         df_path = self.config.get('dataset', 'df_path')
         os.chdir(df_path)
         dataset_filter = self.config.get('dataset', 'dataset_filter')
-        df_name = dataset_filter + '_df'
+        df_name = self.exercise_type + '_' + dataset_filter + '_df'
         self.df.to_pickle(df_name)
 
         print('Finished loading Dataset')

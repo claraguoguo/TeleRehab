@@ -171,14 +171,17 @@ def main():
     # Extract Frames from videos
     should_use_local_df = config.getint('dataset', 'should_use_local_df')
     fps = config.getint('dataset', 'fps')
+    exercise_type = config.get('dataset', 'exercise_type')
+    exercise_label_text = config.get('dataset', 'exercise_label_text')
 
     if should_use_local_df:
-        print('Using local df')
         df_path = config.get('dataset', 'df_path')
         change_dir(df_path)
         dataset_filter = config.get('dataset', 'dataset_filter')
-        df_name = dataset_filter + '_df'
+        df_name = exercise_type + '_' + dataset_filter + '_df'
         df = pd.read_pickle(df_name)
+        print('Using local df: '+ df_name)
+
         # TODO: Fix max_video_sec to not be hard-coded
         max_video_sec = 60
     else:
@@ -187,6 +190,7 @@ def main():
         data_loader.load_data()
         df = data_loader.df
         max_video_sec = data_loader.max_video_sec
+        print('max_video_sec = ' + str(max_video_sec))
 
     # Maximum number of frames (will be used for zero padding)
     max_frame_num = max_video_sec * fps
@@ -211,18 +215,16 @@ def main():
     ########################################################################
     # list all data files
     all_X_list = df['video_name']                        # all video file names
-    all_y_list = df['clinical TS Ex#1']                  # all video labels
+    all_y_list = df[exercise_label_text]                  # all video labels
 
     if 'binary' in model_name:
         binary_labels = df
-        binary_labels.loc[binary_labels['clinical TS Ex#1'] < binary_threshold, 'clinical TS Ex#1'] = 0
-        binary_labels.loc[binary_labels['clinical TS Ex#1'] > binary_threshold, 'clinical TS Ex#1'] = 1
-        all_y_list = binary_labels['clinical TS Ex#1'].astype(int)
+        binary_labels.loc[binary_labels[exercise_label_text] < binary_threshold, exercise_label_text] = 0
+        binary_labels.loc[binary_labels[exercise_label_text] > binary_threshold, exercise_label_text] = 1
+        all_y_list = binary_labels[exercise_label_text].astype(int)
 
     # transform the labels by taking Log10
     # log_all_y_list = np.log10(all_y_list)
-
-    exercise_type = config.get('dataset', 'exercise_type')
 
     print('Total number of samples {} for {}'.format(all_X_list.shape[0], exercise_type))
 
@@ -249,9 +251,14 @@ def main():
         0: (1 - beta) / (1 - beta ** num_label_0),
         1: (1 - beta) / (1 - beta ** num_label_1)
     }
+    print("label_to_weights: ")
+    print(label_to_weights)
 
     # Calculated class weights use sklearn build-in function
     weights = class_weight.compute_class_weight('balanced', np.asarray([0, 1]), train_label.values)
+    print("class_weight.compute_class_weight: ")
+    print(weights)
+
     assert (len(weights) == N_CLASSES)
 
     # Obtain the PyTorch data loader objects to load batches of the datasets

@@ -264,10 +264,10 @@ def get_weighted_loss_data_loader(train_list, test_list, train_label, test_label
     n_threads = config.getint(model_name, 'n_threads')
     train_set = Weighted_Loss_Dataset(config, train_list, train_label, max_frames, spatial_transform=spatial_transform,
                                       temporal_transform=temporal_transform, weights=label_to_weights)
-    valid_set = Weighted_Loss_Dataset(config, test_list, test_label, max_frames, spatial_transform=spatial_transform,
+    test_set = Weighted_Loss_Dataset(config, test_list, test_label, max_frames, spatial_transform=spatial_transform,
                                       temporal_transform=temporal_transform, weights=label_to_weights)
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=False, num_workers=n_threads,
                                                pin_memory=True, sampler=getSampler(train_label, config))
-    valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size, shuffle=False, num_workers=n_threads,
-                                               pin_memory=True, sampler=getSampler(test_label, config))
-    return train_loader, valid_loader
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=n_threads,
+                                               pin_memory=True)
+    return train_loader, test_loader

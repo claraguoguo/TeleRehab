@@ -214,7 +214,7 @@ def main():
     binary_threshold = config.getint('dataset', 'binary_threshold')
     ########################################################################
     # list all data files
-    all_X_list = df['video_name']                        # all video file names
+    all_X_list = df['video_name']                         # all video file names
     all_y_list = df[exercise_label_text]                  # all video labels
 
     if 'binary' in model_name:

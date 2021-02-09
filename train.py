@@ -11,6 +11,13 @@ from opts import parse_opts
 from load_data import KiMoReDataLoader
 from plot_train import *
 from util import *
+from datetime import datetime
+from pytz import timezone
+
+# Get current (EST) time stamp
+fmt = "%Y-%m-%d %H:%M:%S %Z%z"
+now_time = datetime.now(timezone('US/Eastern'))
+TIME_STAMP = now_time.strftime("%Y_%m_%d-%H_%M")
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print('Using device:', DEVICE)
@@ -123,13 +130,15 @@ def main():
     # Extract Frames from videos
     should_use_local_df = config.getint('dataset', 'should_use_local_df')
     fps = config.getint('dataset', 'fps')
+    exercise_type = config.get('dataset', 'exercise_type')
+    exercise_label_text = config.get('dataset', 'exercise_label_text')
 
     if should_use_local_df:
         print('Using local df')
         df_path = config.get('dataset', 'df_path')
         change_dir(df_path)
         dataset_filter = config.get('dataset', 'dataset_filter')
-        df_name = dataset_filter + '_df'
+        df_name = exercise_type + '_' + dataset_filter + '_df'
         df = pd.read_pickle(df_name)
         # TODO: Fix max_video_sec to not be hard-coded
         max_video_sec = 60
@@ -159,13 +168,11 @@ def main():
     bs = config.getint(model_name, 'batch_size')
     ########################################################################
     # list all data files
-    all_X_list = df['video_name']                       # all video file names
-    all_y_list = df['clinical TS Ex#1']                  # all video labels
+    all_X_list = df['video_name']                         # all video file names
+    all_y_list = df[exercise_label_text]                  # all video labels
 
     # transform the labels by taking Log10
     # log_all_y_list = np.log10(all_y_list)
-
-    exercise_type = config.get('dataset', 'exercise_type')
 
     print('Total number of samples {} for {}'.format(all_X_list.shape[0], exercise_type))
 

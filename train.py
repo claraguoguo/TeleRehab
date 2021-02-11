@@ -244,7 +244,15 @@ def main():
 
     # Change to ouput directory and create a folder with timestamp
     output_path = config.get('dataset', 'result_output_path')
-    change_dir(output_path)
+
+        # Create a directory with TIME_STAMP and model_name to store all outputs
+    output_path = os.path.join(output_path, TIME_STAMP + "_" + model_name)
+    try:
+        os.mkdir(output_path)
+        os.chdir(output_path)
+    except OSError:
+        print("Creation of the directory %s failed!" % output_path)
+
 
     # Save the model
     should_save_model = config.getint('output', 'should_save_model')

@@ -219,7 +219,7 @@ def main():
 
     if 'binary' in model_name:
         binary_labels = df
-        binary_labels.loc[binary_labels[exercise_label_text] < binary_threshold, exercise_label_text] = 0
+        binary_labels.loc[binary_labels[exercise_label_text] <= binary_threshold, exercise_label_text] = 0
         binary_labels.loc[binary_labels[exercise_label_text] > binary_threshold, exercise_label_text] = 1
         all_y_list = binary_labels[exercise_label_text].astype(int)
 

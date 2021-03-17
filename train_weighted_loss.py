@@ -168,7 +168,7 @@ def main():
     config = get_config(args.config)
 
     ########################################################################
-    # Extract Frames from videos
+    # Load dataframe
     should_use_local_df = config.getint('dataset', 'should_use_local_df')
     fps = config.getint('dataset', 'fps')
     exercise_type = config.get('dataset', 'exercise_type')
@@ -194,6 +194,7 @@ def main():
 
     # Maximum number of frames (will be used for zero padding)
     max_frame_num = max_video_sec * fps
+
     ########################################################################
     # Fixed PyTorch random seed for reproducible result
     seed = config.getint('random_state', 'seed')
@@ -222,6 +223,18 @@ def main():
         binary_labels.loc[binary_labels[exercise_label_text] <= binary_threshold, exercise_label_text] = 0
         binary_labels.loc[binary_labels[exercise_label_text] > binary_threshold, exercise_label_text] = 1
         all_y_list = binary_labels[exercise_label_text].astype(int)
+
+    ########################################################################
+    # Change video path to skeletal video location
+    should_use_skeletal_video = config.getint('dataset', 'should_use_skeletal_video')
+    skeletal_video_path = config.get('dataset', 'skeletal_video_path')
+    if (should_use_skeletal_video):
+        f = lambda row: os.path.join(skeletal_video_path,
+                                     os.path.join(*(row.video_name.split("/")[6:])).replace("/", "_").split(".")[0],
+                                     'openpose.avi')
+        df['skeletal_video_path'] = df.apply(f, axis=1)
+        all_X_list = df['skeletal_video_path']
+
 
     # transform the labels by taking Log10
     # log_all_y_list = np.log10(all_y_list)
@@ -333,7 +346,8 @@ def main():
     output_path = os.path.join(output_path, TIME_STAMP + "_" + model_name)
     if should_use_weighted_loss:
         output_path += '_weighted'
-
+    elif should_use_skeletal_video:
+        output_path += '_skeletal_video'
     try:
         os.mkdir(output_path)
         os.chdir(output_path)

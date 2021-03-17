@@ -171,6 +171,17 @@ def main():
     all_X_list = df['video_name']                         # all video file names
     all_y_list = df[exercise_label_text]                  # all video labels
 
+    ########################################################################
+    # Change video path to skeletal video location
+    should_use_skeletal_video = config.getint('dataset', 'should_use_skeletal_video')
+    skeletal_video_path = config.get('dataset', 'skeletal_video_path')
+    if (should_use_skeletal_video):
+        f = lambda row: os.path.join(skeletal_video_path,
+                                     os.path.join(*(row.video_name.split("/")[6:])).replace("/", "_").split(".")[0],
+                                     'openpose.avi')
+        df['skeletal_video_path'] = df.apply(f, axis=1)
+        all_X_list = df['skeletal_video_path']
+
     # transform the labels by taking Log10
     # log_all_y_list = np.log10(all_y_list)
 

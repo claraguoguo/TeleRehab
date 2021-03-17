@@ -345,9 +345,9 @@ def main():
     # Create a directory with TIME_STAMP and model_name to store all outputs
     output_path = os.path.join(output_path, TIME_STAMP + "_" + model_name)
     if should_use_weighted_loss:
-        output_path += '_weighted'
-    elif should_use_skeletal_video:
-        output_path += '_skeletal_video'
+        output_path += '_Weighted'
+    if should_use_skeletal_video:
+        output_path += '_Skeletal_video'
     try:
         os.mkdir(output_path)
         os.chdir(output_path)

@@ -9,6 +9,7 @@ from sklearn.metrics import classification_report, ConfusionMatrixDisplay, confu
 import configparser
 from sklearn import metrics
 import math
+import glob
 
 def getSampler(labels, config):
     binary_threshold = config.getint('dataset', 'binary_threshold')
@@ -242,7 +243,7 @@ def get_data_loader(train_list, test_list, train_label, test_label, model_name, 
 
 def get_weighted_loss_data_loader(train_list, test_list, train_label, test_label,
                                   model_name, max_frames, config, label_to_weights):
-    # Use the mean and std 
+    # Use the mean and std
     # https://pytorch.org/docs/stable/torchvision/models.html
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
@@ -271,3 +272,35 @@ def get_weighted_loss_data_loader(train_list, test_list, train_label, test_label
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=n_threads,
                                                pin_memory=True)
     return train_loader, test_loader
+
+def my_collate(batch):
+    batch = list(filter(lambda x : x is not None, batch))
+    return torch.utils.data.dataloader.default_collate(batch)
+
+def get_lstm_data_loader(train_list, test_list, train_label, test_label,
+                                  model_name, n_steps, config):
+
+    batch_size = config.getint(model_name, 'batch_size')
+    n_threads = config.getint(model_name, 'n_threads')
+    train_set = LSTM_Dataset(config, train_list, train_label, n_steps)
+    test_set = LSTM_Dataset(config, test_list, test_label, n_steps)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=False,
+                                               num_workers=n_threads, collate_fn=my_collate)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False,
+                                              num_workers=n_threads, collate_fn=my_collate)
+
+    return train_loader, test_loader
+
+
+# Get the max line counts in all the .txt files under given file_root
+def get_max_line_counts(file_root):
+    max_lines = 0
+    file_count = 0
+    for filepath in glob.glob(file_root + '/*.txt', recursive=True):
+        num_lines = sum(1 for line in open(filepath))
+        if (num_lines > max_lines):
+            max_lines = num_lines
+
+        file_count += 1
+    print("Iterate through {0} files, max line counts: {1}".format(file_count, max_lines))
+    return max_lines

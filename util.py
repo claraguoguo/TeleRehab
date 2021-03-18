@@ -173,39 +173,7 @@ def normalize_label(labels):
 
 
 ################################### LOADING DATA ################################### 
-def get_data_loader(train_list, test_list, train_label, test_label,\
-                    model_name, max_frames, config):
-    # Use the mean and std 
-    # https://pytorch.org/docs/stable/torchvision/models.html
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
-    frame_size = config.getint(model_name, 'frame_size')
-    ## sample_duration will be the number of frames = duration of video in seconds
-    # opt.sample_duration = len(os.listdir("tmp"))
-    # TODO: Normalize Image (center / min-max) & Map rgb --> [0, 1]
-    spatial_transform = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize(frame_size),
-        transforms.CenterCrop(frame_size),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=mean, std=std)])
 
-    ## temporal_transform = LoopPadding(opt.sample_duration)
-    temporal_transform = None
-
-    batch_size = config.getint(model_name, 'batch_size')
-    n_threads = config.getint(model_name, 'n_threads')
-    train_set = CNN3D_Dataset(config, train_list, train_label, max_frames, spatial_transform=spatial_transform,
-                              temporal_transform=temporal_transform, weights=label_to_weights)
-    valid_set = CNN3D_Dataset(config, test_list, test_label, max_frames, spatial_transform=spatial_transform,
-                              temporal_transform=temporal_transform, weights=None)
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size,
-                                              shuffle=False, num_workers=n_threads, pin_memory=True)
-    valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size,
-                                              shuffle=False, num_workers=n_threads, pin_memory=True)
-    return train_loader, valid_loader
-
-    ################################### LOADING DATA ################################### 
 def get_data_loader(train_list, test_list, train_label, test_label, model_name, max_frames, config ):
     # Use the mean and std 
     # https://pytorch.org/docs/stable/torchvision/models.html
@@ -217,7 +185,6 @@ def get_data_loader(train_list, test_list, train_label, test_label, model_name, 
     # TODO: Normalize Image (center / min-max) & Map rgb --> [0, 1]
     spatial_transform = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.Resize(frame_size),
         transforms.CenterCrop(frame_size),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)])
@@ -236,8 +203,6 @@ def get_data_loader(train_list, test_list, train_label, test_label, model_name, 
     valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size,
                                               shuffle=False, num_workers=n_threads, pin_memory=True)
     return train_loader, valid_loader
-
-
 
 
 
@@ -253,7 +218,6 @@ def get_weighted_loss_data_loader(train_list, test_list, train_label, test_label
     # TODO: Normalize Image (center / min-max) & Map rgb --> [0, 1]
     spatial_transform = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.Resize(frame_size),
         transforms.CenterCrop(frame_size),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)])
@@ -278,12 +242,12 @@ def my_collate(batch):
     return torch.utils.data.dataloader.default_collate(batch)
 
 def get_lstm_data_loader(train_list, test_list, train_label, test_label,
-                                  model_name, n_steps, config):
+                                  model_name, max_frames, config):
 
     batch_size = config.getint(model_name, 'batch_size')
     n_threads = config.getint(model_name, 'n_threads')
-    train_set = LSTM_Dataset(config, train_list, train_label, n_steps)
-    test_set = LSTM_Dataset(config, test_list, test_label, n_steps)
+    train_set = LSTM_Dataset(config, train_list, train_label, max_frames)
+    test_set = LSTM_Dataset(config, test_list, test_label, max_frames)
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=False,
                                                num_workers=n_threads, collate_fn=my_collate)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False,

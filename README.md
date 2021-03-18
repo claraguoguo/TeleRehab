@@ -75,7 +75,7 @@ To get a local copy up and running follow these simple steps.
 
 Here is a list of useful resources.
 
-* 
+* [pytorch-openpose](https://github.com/Hzzone/pytorch-openpose) - pytorch implementation of openpose including Body and Hand Pose Estimation
 
 
 

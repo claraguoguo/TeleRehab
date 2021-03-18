@@ -25,6 +25,7 @@ TIME_STAMP = now_time.strftime("%Y_%m_%d-%H_%M")
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 N_CLASSES = 2
+
 def test(model, loader, criterion):
     """ Test the model on the test set.
 
@@ -44,17 +45,18 @@ def test(model, loader, criterion):
     total_labels = 0
     accuracy = 0
 
-    outputs_tensor = torch.empty((0,2)).to(DEVICE)
     binarized_labels = np.empty((0, 3), int)
+    binarized_predicts = np.empty((0,2), int)
 
     for i, data in enumerate(loader, 0):
-        inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
-        labels_list += labels.tolist()
+        inputs, labels, inputs_lens = data[0].to(DEVICE), data[1].to(DEVICE), data[2].to(DEVICE)
+        labels_list += labels.flatten().tolist()
         with torch.no_grad():
             model.eval()
             # Get model outputs
-            outputs = model(inputs)
-            _, predict = torch.max(outputs, 1)
+            outputs = model(inputs, inputs_lens)
+
+            predict = (outputs > 0.5).int()
 
             # Append outputs with label = 1 to list
             # outputs_list += outputs[:, 1].flatten().tolist()
@@ -64,11 +66,14 @@ def test(model, loader, criterion):
                 binaried_y = label_binarize(labels, classes=[0, 1, 2])
             else:
                 binaried_y = label_binarize(labels.view(-1).cpu(), classes=[0, 1, 2])
+
             binarized_labels = np.concatenate((binarized_labels, binaried_y), 0)
-            outputs_tensor = torch.cat((outputs_tensor, outputs), 0)
+            binarized_predicts = np.vstack((binarized_predicts, label_binarize(predict, classes=[0, 1, 2])[:,:2]))
 
             predict_list += predict.flatten().tolist()
 
+            # Converts labels to float in order for the BinaryCrossEntropyWithLogits() to work
+            labels = labels.float()
             # Compute loss
             loss = criterion(outputs, labels)
 
@@ -86,7 +91,7 @@ def test(model, loader, criterion):
     print('testing predicts_list:')
     print(predict_list)
 
-    return binarized_labels, outputs_tensor, labels_list, predict_list, loss, accuracy
+    return binarized_labels, binarized_predicts, labels_list, predict_list, loss, accuracy
 
 def train(epoch, model, loader, optimizer, criterion):
     total_train_loss = 0.0
@@ -97,17 +102,20 @@ def train(epoch, model, loader, optimizer, criterion):
     for i, data in enumerate(loader, 0):
         model.train()
         # Get the inputs
-        inputs, labels = data[0].to(DEVICE), data[1].to(DEVICE)
+        inputs, labels, inputs_lens = data[0].to(DEVICE), data[1].to(DEVICE), data[2].to(DEVICE)
 
         # Zero the parameter gradients
         optimizer.zero_grad()
 
         # Forward pass, backward pass, and optimize
-        outputs = model(inputs)
-        _, predict = torch.max(outputs, 1)
-        print(f'Epoch: {epoch}, Batch: {counter}, \nlabels: {labels.data.T} \noutputs: {predict}')
+        outputs = model(inputs, inputs_lens)
+
+        predict = (outputs > 0.5).int()
+        print(f'Epoch: {epoch}, Batch: {counter}, \nlabels: {labels.data.T.squeeze()} \noutputs: {predict.squeeze()}')
         counter += 1
 
+        # Converts labels to float in order for the BinaryCrossEntropyWithLogits() to work
+        labels = labels.float()
         loss = criterion(outputs, labels)
 
         loss.backward()
@@ -170,8 +178,8 @@ def main():
         max_video_sec = data_loader.max_video_sec
         print('max_video_sec = ' + str(max_video_sec))
 
-    # TODO: FIX n_steps
-    n_steps = max_video_sec * fps
+    # For exercise 1: max_frames =  419
+    max_frames = get_max_line_counts(config.get('dataset', 'skeletal_data_path'))
     ########################################################################
     # Load data from dataframe
     all_X_list = df['video_name']                         # all video file names
@@ -195,30 +203,34 @@ def main():
 
     # Obtain the PyTorch data loader objects to load batches of the datasets
     full_train_loader, test_loader = get_lstm_data_loader(full_train_list, test_list, full_train_label,
-                                                     test_label, model_name, n_steps, config)
+                                                     test_label, model_name, max_frames, config)
 
     train_loader, valid_loader = get_lstm_data_loader(train_list, valid_list, train_label, valid_label,
-                                                 model_name, n_steps, config)
+                                                 model_name, max_frames, config)
 
     ########################################################################
     # Load model
-    model = generate_model(model_name, n_steps, config)
+    model = generate_model(model_name, max_frames, config)
     model.to(DEVICE)
 
     ########################################################################
     # Define the Loss function, optimizer, scheduler
+    # optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-4)
+    # if loss_fn == 'l1':
+    #     print('Loss function: nn.L1Loss()')
+    #     criterion = nn.L1Loss()
+    # elif loss_fn == 'bce':
+    #     criterion = nn.BCEWithLogitsLoss()
+    #     optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
+    # elif loss_fn == 'cross_entropy':
+    #     criterion = nn.CrossEntropyLoss()
+    # else:
+    #     print('Loss function: nn.MSELoss()')
+    #     criterion = nn.MSELoss()
+    #
+
+    criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-4)
-    if loss_fn == 'l1':
-        print('Loss function: nn.L1Loss()')
-        criterion = nn.L1Loss()
-    elif loss_fn == 'bce':
-        criterion = nn.BCEWithLogitsLoss()
-        optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
-    elif loss_fn == 'cross_entropy':
-        criterion = nn.CrossEntropyLoss()
-    else:
-        print('Loss function: nn.MSELoss()')
-        criterion = nn.MSELoss()
 
     scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
     ########################################################################
@@ -250,7 +262,7 @@ def main():
     print("Final Train Loss: {:0.2f}, Final Train Accuracy: {:0.2f}".format(final_train_loss, final_train_acc))
 
     # Test the final model
-    binarized_labels, outputs_tensor, labels_list, predict_list, test_loss, test_acc = test(model, test_loader,
+    binarized_labels, binarized_predicts, labels_list, predict_list, test_loss, test_acc = test(model, test_loader,
                                                                                             criterion)
     print("Final Test Loss: {:0.2f}, Final Test Accuracy: {:0.2f}".format(test_loss, test_acc))
 
@@ -267,7 +279,7 @@ def main():
         print("Creation of the directory %s failed!" % output_path)
 
     # show metrics evaluated on binary classifier
-    pos_prob = np.asarray(outputs_tensor[:, 1].flatten().tolist())  # predicted possibilities for Class 1
+    pos_prob = binarized_predicts[:, 1].flatten().tolist()  # predicted possibilities for Class 1
     show_binary_classifier_metrics(labels_list, predict_list, pos_prob, model_name, config)
 
     # Compute ROC curve and ROC area for each class
@@ -277,7 +289,7 @@ def main():
 
     for i in range(N_CLASSES):
         i_labels = binarized_labels[:, i]
-        i_outputs = np.asarray(outputs_tensor[:, i].flatten().tolist())
+        i_outputs = binarized_predicts[:, i].flatten().tolist()
 
         fpr[i], tpr[i], _ = metrics.roc_curve(i_labels, i_outputs, pos_label=i)
         auc_2 = metrics.auc(fpr[i], tpr[i])
@@ -285,10 +297,6 @@ def main():
         # calculate AUC
         roc_auc[i] = metrics.roc_auc_score(i_labels, i_outputs)
         print('Class: {} |  metrics.roc_curve: {:0.3f} | metrics.auc: {:0.3f}'.format(i, roc_auc[i], auc_2))
-
-    # # Compute micro-average ROC curve and ROC area
-    # fpr["micro"], tpr["micro"], _ = metrics.roc_curve(binarized_labels[:,:-1], outputs_tensor.flatten().tolist())
-    # roc_auc["micro"] = metrics.auc(fpr["micro"], tpr["micro"])
 
     plot_ROC(fpr, tpr, roc_auc, N_CLASSES, model_name, config)
 

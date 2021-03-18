@@ -98,12 +98,12 @@ class Weighted_Loss_Dataset(data.Dataset):
 
 class LSTM_Dataset(data.Dataset):
     "Characterizes a dataset for PyTorch"
-    def __init__(self, config, inputs, labels, n_steps):
+    def __init__(self, config, inputs, labels, max_frames):
         "Initialization"
         self.config = config
         self.labels = labels
         self.inputs = inputs
-        self.n_steps = n_steps
+        self.max_frames = max_frames
         self.skeletal_data_path = config.get('dataset', 'skeletal_data_path')
 
     def __len__(self):
@@ -116,29 +116,29 @@ class LSTM_Dataset(data.Dataset):
         input = self.inputs[index]
 
         os.chdir(self.skeletal_data_path)
-        print(os.getcwd())
         # Load data from the text file
         txt_file_name = os.path.join(*(input.split('/')[-6:])).replace("/", "_").split(".")[0]
 
-        print(txt_file_name)
         data = np.loadtxt(txt_file_name + ".txt", delimiter=',')
 
         # Convert numpy array to tensor
         X = torch.from_numpy(data)
 
-        # The needed padding is the difference between the X.shape[0] and n_steps.
-        p1d = (0, 0, 0, self.n_steps - X.shape[0])
-        X = F.pad(X, p1d, "constant", 0)                           # [n_steps, n_joints]
+        X_len = X.shape[0]         # Number of frames
+
+        # The needed padding is the difference between the X.shape[0] and max_frames.
+        p1d = (0, 0, 0, self.max_frames - X_len)
+        X = F.pad(X, p1d, "constant", 0)                           # [max_frames, n_joints]
 
         y = torch.LongTensor([self.labels[index]])               # (labels) LongTensor are for int64 instead of FloatTensor
 
         # label = self.labels[index]                                 # (label) clinical score
         # y = torch.tensor(())
         # if (label == 1):
-        #     y = y.new_ones((X.shape[0], 1), dtype=torch.long)            # [n_steps, 1]
+        #     y = y.new_ones((X.shape[0], 1), dtype=torch.long)            # [max_frames, 1]
         # else:
-        #     y = y.new_zeros((X.shape[0], 1), dtype=torch.long)           # [n_steps, 1]
-        return X, y
+        #     y = y.new_zeros((X.shape[0], 1), dtype=torch.long)           # [max_frames, 1]
+        return X, y, X_len
 
 
 # LSTM_Dataset_Wrapper handles errors from LSTM_Dataset

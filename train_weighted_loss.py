@@ -356,7 +356,7 @@ def main():
 
     # show metrics evaluated on binary classifier
     pos_prob = np.asarray(outputs_tensor[:, 1].flatten().tolist())      # predicted possibilities for Class 1
-    show_binary_classifier_metrics(labels_list, predict_list, pos_prob, model_name, config)
+    write_binary_classifier_metrics(labels_list, predict_list, pos_prob, test_list.index.to_list(), model_name, config)
 
     # Compute ROC curve and ROC area for each class
     fpr = dict()

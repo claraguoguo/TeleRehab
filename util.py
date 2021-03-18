@@ -31,7 +31,7 @@ def plot_confusion_matrix(cm, auc, model_name, config):
     epoch = config.getint(model_name, 'epoch')
     plt.savefig("cm_auc_{}_epoch_{}.png".format(auc, epoch))
 
-def show_binary_classifier_metrics(y_true, y_pred, y_pred_prob, model_name, config):
+def write_binary_classifier_metrics(y_true, y_pred, y_pred_prob, y_IDs, model_name, config):
     print('\n Binary Classifier Metrics Results')
     print('Total number of test cases: {}'.format(len(y_true)))
 
@@ -66,6 +66,7 @@ def show_binary_classifier_metrics(y_true, y_pred, y_pred_prob, model_name, conf
 
     with open(file_name, "w") as text_file:
         print(content, file=text_file)
+        print(f"Test IDs:  {y_IDs} \n", file=text_file)
         print(f"Labels:  {y_true} \nOutputs: {y_pred} \n", file=text_file)
         print(f"True positive: {tp}", file=text_file)
         print(f"False positive: {fp}", file=text_file)

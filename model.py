@@ -39,7 +39,7 @@ def generate_model(model_name, max_num_frame, config):
         n_joints = config.getint(model_name, 'n_joints')
         n_categories = config.getint(model_name, 'n_categories')
         n_layer = config.getint(model_name, 'n_layer')
-        model = LSTM(n_joints, hidden_dim, n_categories, n_layer)
+        model = LSTM(n_joints, hidden_dim, n_categories, n_layer, max_num_frame)
         print("Loading LSTM model")
 
     else:

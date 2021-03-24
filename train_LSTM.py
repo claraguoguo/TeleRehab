@@ -281,7 +281,10 @@ def main():
     output_path = config.get('dataset', 'result_output_path')
 
     # Create a directory with TIME_STAMP and model_name to store all outputs
-    output_path = os.path.join(output_path, TIME_STAMP + "_" + model_name)
+    fps = 10
+    n_joints = config.getint(model_name, 'n_joints')
+    n_layer = config.getint(model_name, 'n_layer')
+    output_path = os.path.join(output_path, f"{TIME_STAMP}_{model_name}_fps_{fps}_joints_{n_joints}_layers_{n_layer}")
 
     try:
         os.mkdir(output_path)

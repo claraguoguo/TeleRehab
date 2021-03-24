@@ -194,8 +194,19 @@ def main():
     ########################################################################
     # train, test split
     # full_train_list --> Train_list + Validation_list    |   test_list
-    full_train_list, test_list, full_train_label, test_label = train_test_split(all_X_list, all_y_list,
-                                                                                test_size=test_size, random_state=seed)
+
+    # This is to ensure LSTM and 3d-CNN models will be tested on the same set of test data
+    colab_test_ID = ['B_ID5', 'NE_ID6', 'P_ID6', 'B_ID1', 'S_ID9', 'NE_ID13', 'P_ID11', 'E_ID13', 'P_ID13', 'NE_ID17', 'NE_ID12',
+            'E_ID10', 'P_ID10', 'E_ID9', ' B_ID6']
+    test_list = all_X_list[all_X_list.index.isin(colab_test_ID)]
+    test_label = all_y_list[all_y_list.index.isin(colab_test_ID)]
+
+    full_train_list = all_X_list[~all_X_list.index.isin(colab_test_ID)]
+    full_train_label = all_y_list[~all_y_list.index.isin(colab_test_ID)]
+
+
+    # full_train_list, test_list, full_train_label, test_label = train_test_split(all_X_list, all_y_list,
+    #                                                                             test_size=test_size, random_state=seed)
 
     # full_train_list --> Train_list + Validation_list
     train_list, valid_list, train_label, valid_label = \

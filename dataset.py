@@ -4,8 +4,10 @@ import torch.nn.functional as F
 import os
 import skvideo.io
 import numpy as np
-import torchvision.transforms as transforms
+from sklearn.model_selection import train_test_split
 
+from model import generate_model
+from opts import parse_opts
 
 ## ---------------------- Dataloaders ---------------------- ##
 # for 3DCNN
@@ -149,3 +151,37 @@ class LSTM_Dataset_Wrapper(LSTM_Dataset):
             return super(LSTM_Dataset, self).__getitem__(index)
         except Exception as e:
             print(e)
+
+
+
+class MLP_Dataset(data.Dataset):
+
+    def __init__(self, X, y, config):
+        self.features = X
+        self.label = y
+        self.skeletal_features_path = config.get('dataset', 'skeletal_features_path')
+
+    def __len__(self):
+        return len(self.features)
+
+    def __getitem__(self, index):
+        features = self.features[index]
+
+        # Load data from the text file
+        txt_file_name = os.path.join(*(features.split('/')[-6:])).replace("/", "_").split(".")[0]
+
+        if (txt_file_name[-1] == "_"):
+            # TODO: need a better fix
+            # Naming is inconsistent in KIMORE, some videos has an extra underscore. The extra underscore needs to be removed
+            # i.e. 'CG_Expert_E_ID9_Es1_rgb_Blur_rgb271114_123334_'
+            txt_file_name = txt_file_name[:-1]
+
+        data = np.loadtxt(os.path.join(self.skeletal_features_path, txt_file_name + ".txt"), delimiter=',')
+
+        data = data[:, :3]
+        # Convert numpy array to tensor
+        X = torch.from_numpy(data)
+        # Flatten X
+        X = X.flatten()
+        label = self.label[index]
+        return X, label

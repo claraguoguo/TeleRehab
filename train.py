@@ -253,7 +253,7 @@ def main():
     labels_list, outputs_list, test_loss = test(model, test_loader, criterion)
     print("Final Test loss: {}".format(test_loss))
 
-    # Change to ouput directory and create a folder with timestamp
+    # Change to output directory and create a folder with timestamp
     output_path = config.get('dataset', 'result_output_path')
 
     # Create a directory with TIME_STAMP and model_name to store all outputs

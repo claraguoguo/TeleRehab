@@ -232,7 +232,7 @@ def get_weighted_loss_data_loader(train_list, test_list, train_label, test_label
                                       temporal_transform=temporal_transform, weights=label_to_weights)
     test_set = Weighted_Loss_Dataset(config, test_list, test_label, max_frames, spatial_transform=spatial_transform,
                                       temporal_transform=temporal_transform, weights=label_to_weights)
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=False, num_workers=n_threads,
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=n_threads,
                                                pin_memory=True, sampler=getSampler(train_label, config))
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=n_threads,
                                                pin_memory=True)
@@ -242,6 +242,16 @@ def my_collate(batch):
     batch = list(filter(lambda x : x is not None, batch))
     return torch.utils.data.dataloader.default_collate(batch)
 
+def get_mlp_data_loader(train_list, test_list, train_label, test_label,
+                                  model_name, config):
+    batch_size = config.getint(model_name, 'batch_size')
+    train_dataset = MLP_Dataset(train_list, train_label, config)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    test_dataset = MLP_Dataset(test_list, test_label, config)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    return train_loader, test_loader
+
+
 def get_lstm_data_loader(train_list, test_list, train_label, test_label,
                                   model_name, max_frames, config):
 
@@ -249,7 +259,7 @@ def get_lstm_data_loader(train_list, test_list, train_label, test_label,
     n_threads = config.getint(model_name, 'n_threads')
     train_set = LSTM_Dataset(config, train_list, train_label, max_frames)
     test_set = LSTM_Dataset(config, test_list, test_label, max_frames)
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=False,
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True,
                                                num_workers=n_threads, collate_fn=my_collate)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False,
                                               num_workers=n_threads, collate_fn=my_collate)

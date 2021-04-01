@@ -71,12 +71,16 @@ To get a local copy up and running follow these simple steps.
 <!-- USAGE EXAMPLES -->
 ## Usage
 
+## Related Repos
+* Some utility code can be found in [TeleRehab_Utilities](https://github.com/claraguoguo/TeleRehab_Utilities)
+
+* Code used to extract skeletal joints with openpose-COCO model can be found at [demo_video_KIMORE.py](https://github.com/claraguoguo/pytorch-openpose/blob/master/demo_video_KIMORE.py). This code is developed on top of [pytorch-openpose](https://github.com/Hzzone/pytorch-openpose).
+
 ## Useful Resources
 
-Here is a list of useful resources.
+Here is a list of useful resources that I found useful:
 
 * [pytorch-openpose](https://github.com/Hzzone/pytorch-openpose) - pytorch implementation of openpose including Body and Hand Pose Estimation
-
 
 
 <!-- CONTACT -->

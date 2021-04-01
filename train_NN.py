@@ -72,31 +72,12 @@ def train(epoch, model, loader, optimizer, criterion):
     loss = float(total_train_loss) / (i + 1)
     return loss
 
-def plot_graph(model_name, type, train_data, test_loss, config, output_path):
-    """
-    Plot the training loss/error curve given the data from CSV
-    """
-    epoch = config.getint(model_name, 'epoch')
-    lr = config.getfloat(model_name, 'lr')
-    bs = config.getint(model_name, 'batch_size')
-    loss_fn = config.get(model_name, 'loss')
-    plt.figure()
-    plt.title("{0} over training epochs \n {1}_lr{2}_epoch{3}_bs{4}_test{5:.3f}".format(
-        type, model_name, lr, epoch, bs, test_loss))
-    plt.plot(np.arange(1, epoch + 1), train_data, label="Training")
-    plt.xlabel("Epoch")
-    plt.ylabel(loss_fn + type)
-    plt.legend(loc='best')
-    plt.savefig("{7}/{0}_{1}_{2}_lr{3}_epoch{4}_bs{5}_test{6:.3f}.png".format(
-        model_name, type, loss_fn, lr, epoch, bs, test_loss, output_path))
-    plt.close()
-
 def main():
     # Load args and config
     args = parse_opts()
     config = get_config(args.config)
 
-    model_name = 'mlp'
+    model_name = args.model_name
     num_epochs = config.getint(model_name, 'epoch')
 
     exercise_type = config.get('dataset', 'exercise_type')
@@ -122,18 +103,17 @@ def main():
 
     # This is to ensure LSTM and 3d-CNN models will be tested on the same set of test data
     colab_test_ID = ['B_ID5', 'NE_ID6', 'P_ID6', 'B_ID1', 'S_ID9', 'NE_ID13', 'P_ID11', 'E_ID13', 'P_ID13', 'NE_ID17',
-                     'NE_ID12',
-                     'E_ID10', 'P_ID10', 'E_ID9', ' B_ID6']
+                     'NE_ID12', 'E_ID10', 'P_ID10', 'E_ID9', 'B_ID6']
 
     test_list = pd.Series([])
     test_label = pd.Series([])
     for id in colab_test_ID:
+        assert (~all_X_list[all_X_list.index == id].empty)
         test_list = test_list.append(all_X_list[all_X_list.index == id])
         test_label = test_label.append(all_y_list[all_y_list.index == id])
 
     full_train_list = all_X_list[~all_X_list.index.isin(colab_test_ID)]
     full_train_label = all_y_list[~all_y_list.index.isin(colab_test_ID)]
-
 
     # Obtain the PyTorch data loader objects to load batches of the datasets
     full_train_loader, test_loader = get_mlp_data_loader(full_train_list, test_list, full_train_label,
@@ -167,28 +147,21 @@ def main():
 
     # Create a directory with TIME_STAMP and model_name to store all outputs
     output_path = config.get('dataset', 'result_output_path')
-    output_path = os.path.join(output_path, '{0}_{1}_loss_{2:0.1f}'.format(TIME_STAMP, model_name, test_loss))
-
+    num_features = config.getint(model_name, 'n_features')
+    output_path = os.path.join(output_path, '{0}_{1}_loss_{2:0.1f}_features_{3}'.format(
+        TIME_STAMP, model_name, test_loss, num_features))
     try:
         os.mkdir(output_path)
         os.chdir(output_path)
     except OSError:
         print("Creation of the directory %s failed!" % output_path)
 
-    plot_labels_and_outputs(labels_list, predict_list, config, model_name)
-    plot_graph(model_name, 'loss', train_loss, test_loss, config, output_path)
-
-    # Save metrics results into a text file
-    content = ''
-    file_name = os.path.join(output_path, "Test_Results.txt")
-
-    with open(file_name, "w") as text_file:
-        print(content, file=text_file)
-        print('Test IDs: ' + str(colab_test_ID), file=text_file)
-        print('Test labels_list: ' + str(list(np.around(np.array(labels_list), 2))), file=text_file)
-        print('Test predicts_list:' + str(list(np.around(np.array(predict_list), 2))), file=text_file)
-
-        print("Test loss: {:0.2f}".format(test_loss), file=text_file)
+    # Save test results to txt file
+    record_test_results(output_path, colab_test_ID, labels_list, predict_list, test_loss)
+    # Plot test results
+    plot_labels_and_outputs(labels_list, predict_list, config, model_name, colab_test_ID)
+    # Plot training loss
+    plot_training_loss(model_name, 'loss', train_loss, test_loss, config, output_path)
 
 if __name__ == '__main__':
     main()

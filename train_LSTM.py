@@ -404,7 +404,7 @@ def main():
         # Save test results to txt file
         record_test_results(output_path, colab_test_ID, labels_list, predict_list, test_loss)
         # Plot test results
-        plot_labels_and_outputs(labels_list, predict_list, config, model_name, colab_test_ID)
+        plot_labels_and_outputs(labels_list, predict_list, config, model_name, colab_test_ID, test_loss)
         # Plot training loss
         plot_training_loss(model_name, 'loss', train_loss, test_loss, config, output_path)
 

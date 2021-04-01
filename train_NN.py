@@ -145,6 +145,10 @@ def main():
     print('Test labels_list:  ' + str(list(np.around(np.array(labels_list), 2))))
     print('Test predicts_list:' + str(list(np.around(np.array(predict_list), 2))))
 
+    # Compute Spearman correlation
+    rho, pval = stats.spearmanr(predict_list, labels_list)
+    print('Spearman correlation coefficient: {0:0.2f} with associated p-value: {1:0.2f}.'.format(rho, pval))
+
     # Create a directory with TIME_STAMP and model_name to store all outputs
     output_path = config.get('dataset', 'result_output_path')
     num_features = config.getint(model_name, 'n_features')
@@ -159,7 +163,7 @@ def main():
     # Save test results to txt file
     record_test_results(output_path, colab_test_ID, labels_list, predict_list, test_loss)
     # Plot test results
-    plot_labels_and_outputs(labels_list, predict_list, config, model_name, colab_test_ID)
+    plot_labels_and_outputs(labels_list, predict_list, config, model_name, colab_test_ID, test_loss)
     # Plot training loss
     plot_training_loss(model_name, 'loss', train_loss, test_loss, config, output_path)
 

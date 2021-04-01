@@ -10,6 +10,7 @@ import configparser
 from sklearn import metrics
 import math
 import glob
+from scipy import stats
 
 def getSampler(labels, config):
     binary_threshold = config.getint('dataset', 'binary_threshold')
@@ -36,6 +37,8 @@ def record_test_results(output_path, test_ID, labels_list, predict_list, test_lo
     content = ''
     file_name = os.path.join(output_path, "Test_Results.txt")
 
+    # Compute spearman correlation and p-value
+    rho, pval = stats.spearmanr(predict_list, labels_list)
     with open(file_name, "w") as text_file:
         print(content, file=text_file)
         print('Test IDs: ' + str(test_ID), file=text_file)
@@ -44,6 +47,7 @@ def record_test_results(output_path, test_ID, labels_list, predict_list, test_lo
 
         print("Test loss: {:0.2f}".format(test_loss), file=text_file)
 
+        print('Spearman correlation coefficient: {0:0.2f} with p-value: {1:0.2f}'.format(rho, pval), file=text_file)
 
 def write_binary_classifier_metrics(y_true, y_pred, y_pred_prob, y_IDs, model_name, config):
     print('\n Binary Classifier Metrics Results')
@@ -120,7 +124,7 @@ def plot_training_loss(model_name, type, train_data, test_loss, config, output_p
     plt.close()
 
 
-def plot_labels_and_outputs(labels, outputs, config, model_name, ids):
+def plot_labels_and_outputs(labels, outputs, config, model_name, ids, test_loss):
     plt.figure()
     epoch = config.getint(model_name, 'epoch')
     lr = config.getfloat(model_name, 'lr')
@@ -128,9 +132,12 @@ def plot_labels_and_outputs(labels, outputs, config, model_name, ids):
     loss_fn = config.get(model_name, 'loss')
     fps = config.get('dataset', 'fps')
 
+    # Compute spearman correlation and p-value
+    rho, _ = stats.spearmanr(outputs, labels)
+
     x = np.arange(0, len(labels), 1)
-    plt.plot(x, labels, 'o', color='black', label='Labels')
-    plt.plot(x, outputs, 'o', color='red', label='Predictions')
+    plt.plot(x, labels, 'o', color='black', label='Actual')
+    plt.plot(x, outputs, 'o', color='red', label='Predicted')
 
     # for i in range(len(labels)):
     #     label = "{}".format(ids[i])
@@ -144,11 +151,12 @@ def plot_labels_and_outputs(labels, outputs, config, model_name, ids):
     plt.ylabel("Score")
     plt.xlabel("Test Data")
     plt.legend(loc='best')
-    plt.xticks(x, ids, fontsize=6.5)
-    plt.title("Scatterplot of Labels and Predictions \n {0}_{1}_lr{2}_epoch{3}_bs{4}_fps{5}.png".format(
-        model_name, loss_fn , lr, epoch, bs, fps))
-    plt.savefig("{0}_test_scatterplot_{1}_lr{2}_epoch{3}_bs{4}_fps{5}.png".format(
-        model_name, loss_fn , lr, epoch, bs, fps))
+    plt.xticks(x, ids, fontsize=8, rotation=45)
+    plt.title("Scatter plot of Actual v.s. Predicted Scores \n Test loss: {6:0.2f} Spearman Corr: {7:0.2f} \n" 
+              "{0}_{1}_lr{2}_epoch{3}_bs{4}_fps{5}".format(
+        model_name, loss_fn, lr, epoch, bs, fps, test_loss, rho), fontsize=10)
+    plt.savefig("{0}_{1}_{6:0.1f}_spearman_{7:0.1f}_lr{2}_epoch{3}_bs{4}_fps{5}.png".format(
+        model_name, loss_fn, lr, epoch, bs, fps, test_loss, rho))
     plt.close()
 
 def change_dir(new_dir):

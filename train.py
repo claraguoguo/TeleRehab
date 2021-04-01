@@ -286,7 +286,7 @@ def main():
     generate_result_plots(model_name, test_loss, config)
 
     # Create a scatterplot of test results
-    plot_labels_and_outputs(labels_list, outputs_list, config, model_name)
+    plot_labels_and_outputs(labels_list, outputs_list, config, model_name, test_loss)
     plt.close()
 if __name__ == '__main__':
     main()

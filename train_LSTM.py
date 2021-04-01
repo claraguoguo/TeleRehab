@@ -26,7 +26,10 @@ TIME_STAMP = now_time.strftime("%Y_%m_%d-%H_%M")
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 N_CLASSES = 2
 
-def test(model, loader, criterion):
+IS_BINARY_CLASSIFIER = False
+
+
+def test_binary(model, loader, criterion):
     """ Test the model on the test set.
 
      Args:
@@ -93,7 +96,7 @@ def test(model, loader, criterion):
 
     return binarized_labels, binarized_predicts, labels_list, predict_list, loss, accuracy
 
-def train(epoch, model, loader, optimizer, criterion):
+def train_binary(epoch, model, loader, optimizer, criterion):
     total_train_loss = 0.0
     total_train_corr = 0.0
     counter = 0
@@ -133,6 +136,60 @@ def train(epoch, model, loader, optimizer, criterion):
     return loss, accuracy
 
 
+def test(model, test_loader, criterion):
+    total_loss = 0.0
+    labels_list = []
+    predict_list = []
+    for i, data in enumerate(test_loader, 0):
+        inputs, labels, inputs_lens = data[0].to(DEVICE), data[1].to(DEVICE), data[2].to(DEVICE)
+        labels_list += labels.flatten().tolist()
+        with torch.no_grad():
+            model.eval()
+            # Get model outputs
+            predictions = model(inputs, inputs_lens)
+
+            predict_list += predictions.flatten().tolist()
+
+            # Compute loss
+            loss = criterion(input=predictions.squeeze(), target=labels.float())
+            total_loss += loss.item()
+
+    test_loss = float(total_loss) / (i + 1)
+    return test_loss, predict_list, labels_list
+
+
+def train(epoch, model, loader, optimizer, criterion):
+    total_train_loss = 0.0
+    counter = 0
+    total_labels = 0
+    for i, data in enumerate(loader, 0):
+        model.train()
+        # Get the inputs
+        inputs, labels, inputs_lens = data[0].to(DEVICE), data[1].to(DEVICE), data[2].to(DEVICE)
+
+        # Zero the parameter gradients
+        optimizer.zero_grad()
+
+        # Forward pass, backward pass, and optimize
+        predictions = model(inputs, inputs_lens)
+
+        loss = criterion(input=predictions.squeeze(), target=labels.float())
+
+        print(f'Epoch: {epoch}, Batch: {counter},'
+              f' \nlabels: {labels.data.T.squeeze()} \noutputs: {predictions.squeeze()},'
+              f' loss = {loss.item()}')
+        counter += 1
+
+        loss.backward()
+        optimizer.step()
+
+        # Calculate loss statistics
+        total_train_loss += loss.item()
+        total_labels += len(labels)
+
+    loss = float(total_train_loss) / (i + 1)
+    return loss
+
 def main():
     ########################################################################
     # Load args and config
@@ -154,6 +211,7 @@ def main():
     exercise_type = config.get('dataset', 'exercise_type')
     exercise_label_text = config.get('dataset', 'exercise_label_text')
 
+    SHOULD_USE_SKELETAL_FEATURES = config.getint(model_name, 'should_use_features')
     ########################################################################
     # Fixed PyTorch random seed for reproducible result
     seed = config.getint('random_state', 'seed')
@@ -179,17 +237,21 @@ def main():
         print('max_video_sec = ' + str(max_video_sec))
 
     # For exercise 1: max_frames =  419
-    max_frames = get_max_line_counts(config.get('dataset', 'skeletal_data_path'))
+    if(SHOULD_USE_SKELETAL_FEATURES):
+        max_frames = get_max_line_counts(config.get('dataset', 'skeletal_features_all_timestamps_path'))
+    else:
+        max_frames = get_max_line_counts(config.get('dataset', 'skeletal_data_path'))
     ########################################################################
     # Load data from dataframe
     all_X_list = df['video_name']                         # all video file names
     all_y_list = df[exercise_label_text]                  # all video labels
 
-    # Encode the clinical scores to binary labels {0, 1} based on binary_threshold
-    binary_labels = df
-    binary_labels.loc[binary_labels[exercise_label_text] <= binary_threshold, exercise_label_text] = 0
-    binary_labels.loc[binary_labels[exercise_label_text] > binary_threshold, exercise_label_text] = 1
-    all_y_list = binary_labels[exercise_label_text].astype(int)
+    if (IS_BINARY_CLASSIFIER):
+        # Encode the clinical scores to binary labels {0, 1} based on binary_threshold
+        binary_labels = df
+        binary_labels.loc[binary_labels[exercise_label_text] <= binary_threshold, exercise_label_text] = 0
+        binary_labels.loc[binary_labels[exercise_label_text] > binary_threshold, exercise_label_text] = 1
+        all_y_list = binary_labels[exercise_label_text].astype(int)
 
     ########################################################################
     # train, test split
@@ -216,12 +278,21 @@ def main():
     train_list, valid_list, train_label, valid_label = \
         train_test_split(full_train_list, full_train_label, test_size=0.1, random_state=seed)
 
-    # Obtain the PyTorch data loader objects to load batches of the datasets
-    full_train_loader, test_loader = get_lstm_data_loader(full_train_list, test_list, full_train_label,
-                                                     test_label, model_name, max_frames, config)
+    if (SHOULD_USE_SKELETAL_FEATURES):
+        # Obtain the PyTorch data loader objects to load batches of the datasets
+        full_train_loader, test_loader = get_lstm_skeletal_features_data_loader(
+            full_train_list, test_list, full_train_label,test_label, model_name, max_frames, config)
 
-    train_loader, valid_loader = get_lstm_data_loader(train_list, valid_list, train_label, valid_label,
-                                                 model_name, max_frames, config)
+        train_loader, valid_loader = get_lstm_skeletal_features_data_loader(
+            train_list, valid_list, train_label, valid_label, model_name, max_frames, config)
+
+    else:
+        # Obtain the PyTorch data loader objects to load batches of the datasets
+        full_train_loader, test_loader = get_lstm_data_loader(full_train_list, test_list, full_train_label,
+                                                         test_label, model_name, max_frames, config)
+
+        train_loader, valid_loader = get_lstm_data_loader(train_list, valid_list, train_label, valid_label,
+                                                     model_name, max_frames, config)
 
     ########################################################################
     # Load model
@@ -230,21 +301,19 @@ def main():
 
     ########################################################################
     # Define the Loss function, optimizer, scheduler
-    # optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-4)
-    # if loss_fn == 'l1':
-    #     print('Loss function: nn.L1Loss()')
-    #     criterion = nn.L1Loss()
-    # elif loss_fn == 'bce':
-    #     criterion = nn.BCEWithLogitsLoss()
-    # elif loss_fn == 'cross_entropy':
-    #     criterion = nn.CrossEntropyLoss()
-    # else:
-    #     print('Loss function: nn.MSELoss()')
-    #     criterion = nn.MSELoss()
-    #
-
-    criterion = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, eps=1e-4)
+    if loss_fn == 'l1':
+        print('Loss function: nn.L1Loss()')
+        criterion = nn.L1Loss()
+    elif loss_fn == 'bce':
+        criterion = nn.BCEWithLogitsLoss()
+    elif loss_fn == 'cross_entropy':
+        criterion = nn.CrossEntropyLoss()
+    elif loss_fn == 'l2':
+        criterion = nn.MSELoss()
+    else:
+        print('Loss function: nn.MSELoss()')
+        criterion = nn.MSELoss()
 
     scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
     ########################################################################
@@ -261,33 +330,46 @@ def main():
     print('Start training {}...'.format(model_name))
 
     for epoch in range(num_epochs):
-        train_loss[epoch], train_acc[epoch] = train(epoch, model, train_loader, optimizer, criterion)
+        if (IS_BINARY_CLASSIFIER):
+            train_loss[epoch], train_acc[epoch] = train_binary(epoch, model, train_loader, optimizer, criterion)
+            _, _, _, _, val_loss[epoch], val_acc[epoch] = test_binary(model, valid_loader, criterion)
+            print("Epoch {}: Train acc: {}, Train loss: {} | Valid acc: {}, Valid loss: {}".format( \
+                epoch + 1, train_acc[epoch], train_loss[epoch], val_acc[epoch], val_loss[epoch]))
+        else:
+            train_loss[epoch] = train(epoch, model, full_train_loader, optimizer, criterion)
+            print("Epoch {}: Train loss: {}".format(epoch + 1, train_loss[epoch]))
         scheduler.step()
-        _, _, _, _, val_loss[epoch], val_acc[epoch] = test(model, valid_loader, criterion)
-        print("Epoch {}: Train acc: {}, Train loss: {} | Valid acc: {}, Valid loss: {}".format( \
-            epoch + 1, train_acc[epoch], train_loss[epoch], val_acc[epoch], val_loss[epoch]))
 
     print('Finished Training')
 
+    if (IS_BINARY_CLASSIFIER):
+        # Train model with all training data:
+        print('Training model with all data...')
+        final_train_loss, final_train_acc = train_binary(epoch, model, full_train_loader, optimizer, criterion)
+        print("Final Train Loss: {:0.2f}, Final Train Accuracy: {:0.2f}".format(final_train_loss, final_train_acc))
 
-    # Train model with all training data:
-    print('Training model with all data...')
-    final_train_loss, final_train_acc = train(epoch, model, full_train_loader, optimizer, criterion)
-    print("Final Train Loss: {:0.2f}, Final Train Accuracy: {:0.2f}".format(final_train_loss, final_train_acc))
+        # Test the final model
+        binarized_labels, binarized_predicts, labels_list,\
+            predict_list, test_loss, test_acc = test_binary(model, test_loader, criterion)
+        print("Final Test Loss: {:0.2f}, Final Test Accuracy: {:0.2f}".format(test_loss, test_acc))
 
-    # Test the final model
-    binarized_labels, binarized_predicts, labels_list, predict_list, test_loss, test_acc = test(model, test_loader,
-                                                                                            criterion)
-    print("Final Test Loss: {:0.2f}, Final Test Accuracy: {:0.2f}".format(test_loss, test_acc))
+    else:
+        test_loss, predict_list, labels_list = test(model, test_loader, criterion)
+        print("Final Test Loss: {:0.2f}".format(test_loss))
+
+        print('Test IDs: ' + str(colab_test_ID))
+        print('Test labels_list:  ' + str(list(np.around(np.array(labels_list), 2))))
+        print('Test predicts_list:' + str(list(np.around(np.array(predict_list), 2))))
+
 
     # Change to output directory and create a folder with timestamp
     output_path = config.get('dataset', 'result_output_path')
-
     # Create a directory with TIME_STAMP and model_name to store all outputs
     fps = 10
     n_joints = config.getint(model_name, 'n_joints')
     n_layer = config.getint(model_name, 'n_layer')
-    output_path = os.path.join(output_path, f"{TIME_STAMP}_{model_name}_fps_{fps}_joints_{n_joints}_layers_{n_layer}")
+    num_features = config.getint(model_name, 'n_features')
+    output_path = os.path.join(output_path, f"{TIME_STAMP}_{model_name}_fps_{fps}_joints_{n_joints}_layers_{n_layer}_features_{num_features}")
 
     try:
         os.mkdir(output_path)
@@ -295,27 +377,36 @@ def main():
     except OSError:
         print("Creation of the directory %s failed!" % output_path)
 
-    # calculate and write metrics evaluated on binary classifier
-    pos_prob = binarized_predicts[:, 1].flatten().tolist()  # predicted possibilities for Class 1
-    write_binary_classifier_metrics(labels_list, predict_list, pos_prob, test_list.index.to_list(), model_name, config)
+    if (IS_BINARY_CLASSIFIER):
+        # calculate and write metrics evaluated on binary classifier
+        pos_prob = binarized_predicts[:, 1].flatten().tolist()  # predicted possibilities for Class 1
+        write_binary_classifier_metrics(labels_list, predict_list, pos_prob, test_list.index.to_list(), model_name, config)
 
-    # Compute ROC curve and ROC area for each class
-    fpr = dict()
-    tpr = dict()
-    roc_auc = dict()
+        # Compute ROC curve and ROC area for each class
+        fpr = dict()
+        tpr = dict()
+        roc_auc = dict()
 
-    for i in range(N_CLASSES):
-        i_labels = binarized_labels[:, i]
-        i_outputs = binarized_predicts[:, i].flatten().tolist()
+        for i in range(N_CLASSES):
+            i_labels = binarized_labels[:, i]
+            i_outputs = binarized_predicts[:, i].flatten().tolist()
 
-        fpr[i], tpr[i], _ = metrics.roc_curve(i_labels, i_outputs, pos_label=i)
-        auc_2 = metrics.auc(fpr[i], tpr[i])
+            fpr[i], tpr[i], _ = metrics.roc_curve(i_labels, i_outputs, pos_label=i)
+            auc_2 = metrics.auc(fpr[i], tpr[i])
 
-        # calculate AUC
-        roc_auc[i] = metrics.roc_auc_score(i_labels, i_outputs)
-        print('Class: {} |  metrics.roc_curve: {:0.3f} | metrics.auc: {:0.3f}'.format(i, roc_auc[i], auc_2))
+            # calculate AUC
+            roc_auc[i] = metrics.roc_auc_score(i_labels, i_outputs)
+            print('Class: {} |  metrics.roc_curve: {:0.3f} | metrics.auc: {:0.3f}'.format(i, roc_auc[i], auc_2))
 
-    plot_ROC(fpr, tpr, roc_auc, N_CLASSES, model_name, config)
+        plot_ROC(fpr, tpr, roc_auc, N_CLASSES, model_name, config)
+
+    else:
+        # Save test results to txt file
+        record_test_results(output_path, colab_test_ID, labels_list, predict_list, test_loss)
+        # Plot test results
+        plot_labels_and_outputs(labels_list, predict_list, config, model_name, colab_test_ID)
+        # Plot training loss
+        plot_training_loss(model_name, 'loss', train_loss, test_loss, config, output_path)
 
     # Save the model
     should_save_model = config.getint('output', 'should_save_model')
@@ -323,28 +414,28 @@ def main():
         saved_model_name = f'{model_name}_epoch{num_epochs}.pk'
         torch.save(model.state_dict(), saved_model_name)
 
-    # Write the train/test loss/err into CSV file for plotting later
-    epochs = np.arange(1, num_epochs + 1)
-    fps = config.get('dataset', 'fps')
-
-    df = pd.DataFrame({"epoch": epochs, "train_loss": train_loss})
-    df.to_csv("train_{}_loss_{}_lr{}_epoch{}_bs{}_fps{}.csv".format(model_name, loss_fn,
-                                                                    learning_rate, num_epochs, bs, fps), index=False)
-
-    df = pd.DataFrame({"epoch": epochs, "val_loss": val_loss})
-    df.to_csv("val_{}_loss_{}_lr{}_epoch{}_bs{}_fps{}.csv".format(model_name, loss_fn,
-                                                                  learning_rate, num_epochs, bs, fps), index=False)
-    df = pd.DataFrame({"epoch": epochs, "train_acc": train_acc})
-    df.to_csv("train_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_name, learning_rate, num_epochs, bs, fps),
-              index=False)
-
-    df = pd.DataFrame({"epoch": epochs, "val_acc": val_acc})
-    df.to_csv("val_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_name, learning_rate, num_epochs, bs, fps),
-              index=False)
-
-    generate_result_plots(model_name, test_loss, config, test_acc)
-
-    plt.close()
+    # # Write the train/test loss/err into CSV file for plotting later
+    # epochs = np.arange(1, num_epochs + 1)
+    # fps = config.get('dataset', 'fps')
+    #
+    # df = pd.DataFrame({"epoch": epochs, "train_loss": train_loss})
+    # df.to_csv("train_{}_loss_{}_lr{}_epoch{}_bs{}_fps{}.csv".format(model_name, loss_fn,
+    #                                                                 learning_rate, num_epochs, bs, fps), index=False)
+    #
+    # df = pd.DataFrame({"epoch": epochs, "val_loss": val_loss})
+    # df.to_csv("val_{}_loss_{}_lr{}_epoch{}_bs{}_fps{}.csv".format(model_name, loss_fn,
+    #                                                               learning_rate, num_epochs, bs, fps), index=False)
+    # df = pd.DataFrame({"epoch": epochs, "train_acc": train_acc})
+    # df.to_csv("train_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_name, learning_rate, num_epochs, bs, fps),
+    #           index=False)
+    #
+    # df = pd.DataFrame({"epoch": epochs, "val_acc": val_acc})
+    # df.to_csv("val_acc_{}_lr_{}_epoch{}_bs{}_fps{}.csv".format(model_name, learning_rate, num_epochs, bs, fps),
+    #           index=False)
+    #
+    # generate_result_plots(model_name, test_loss, config, test_acc)
+    #
+    # plt.close()
 
 if __name__ == '__main__':
     main()

@@ -31,6 +31,20 @@ def plot_confusion_matrix(cm, auc, model_name, config):
     epoch = config.getint(model_name, 'epoch')
     plt.savefig("cm_auc_{}_epoch_{}.png".format(auc, epoch))
 
+def record_test_results(output_path, test_ID, labels_list, predict_list, test_loss):
+    # Save metrics results into a text file
+    content = ''
+    file_name = os.path.join(output_path, "Test_Results.txt")
+
+    with open(file_name, "w") as text_file:
+        print(content, file=text_file)
+        print('Test IDs: ' + str(test_ID), file=text_file)
+        print('Test labels_list: ' + str(list(np.around(np.array(labels_list), 2))), file=text_file)
+        print('Test predicts_list:' + str(list(np.around(np.array(predict_list), 2))), file=text_file)
+
+        print("Test loss: {:0.2f}".format(test_loss), file=text_file)
+
+
 def write_binary_classifier_metrics(y_true, y_pred, y_pred_prob, y_IDs, model_name, config):
     print('\n Binary Classifier Metrics Results')
     print('Total number of test cases: {}'.format(len(y_true)))
@@ -86,8 +100,28 @@ def write_binary_classifier_metrics(y_true, y_pred, y_pred_prob, y_IDs, model_na
     # generate confusion matrix figure
     plot_confusion_matrix(cm, roc_auc, model_name, config)
 
-def plot_labels_and_outputs(labels, outputs, config, model_name):
+def plot_training_loss(model_name, type, train_data, test_loss, config, output_path):
+    """
+    Plot the training loss/error curve given the data from CSV
+    """
+    epoch = config.getint(model_name, 'epoch')
+    lr = config.getfloat(model_name, 'lr')
+    bs = config.getint(model_name, 'batch_size')
+    loss_fn = config.get(model_name, 'loss')
+    plt.figure()
+    plt.title("{0} over training epochs \n {1}_lr{2}_epoch{3}_bs{4}_test{5:.3f}".format(
+        type, model_name, lr, epoch, bs, test_loss))
+    plt.plot(np.arange(1, epoch + 1), train_data, label="Training")
+    plt.xlabel("Epoch")
+    plt.ylabel(loss_fn + type)
+    plt.legend(loc='best')
+    plt.savefig("{7}/{0}_{1}_{2}_lr{3}_epoch{4}_bs{5}_test{6:.3f}.png".format(
+        model_name, type, loss_fn, lr, epoch, bs, test_loss, output_path))
+    plt.close()
 
+
+def plot_labels_and_outputs(labels, outputs, config, model_name, ids):
+    plt.figure()
     epoch = config.getint(model_name, 'epoch')
     lr = config.getfloat(model_name, 'lr')
     bs = config.getint(model_name, 'batch_size')
@@ -97,13 +131,25 @@ def plot_labels_and_outputs(labels, outputs, config, model_name):
     x = np.arange(0, len(labels), 1)
     plt.plot(x, labels, 'o', color='black', label='Labels')
     plt.plot(x, outputs, 'o', color='red', label='Predictions')
+
+    # for i in range(len(labels)):
+    #     label = "{}".format(ids[i])
+    #
+    #     plt.annotate(label,  # this is the text
+    #                 (x[i], labels[i]),  # this is the point to label
+    #                 textcoords="offset points",  # how to position the text
+    #                 xytext=(0, 10),  # distance from text to points (x,y)
+    #                 ha='center')  # horizontal alignment can be left, right or center
+
     plt.ylabel("Score")
     plt.xlabel("Test Data")
     plt.legend(loc='best')
+    plt.xticks(x, ids, fontsize=6.5)
     plt.title("Scatterplot of Labels and Predictions \n {0}_{1}_lr{2}_epoch{3}_bs{4}_fps{5}.png".format(
         model_name, loss_fn , lr, epoch, bs, fps))
     plt.savefig("{0}_test_scatterplot_{1}_lr{2}_epoch{3}_bs{4}_fps{5}.png".format(
         model_name, loss_fn , lr, epoch, bs, fps))
+    plt.close()
 
 def change_dir(new_dir):
     print('Change directory to{}'.format(new_dir))
@@ -249,6 +295,22 @@ def get_mlp_data_loader(train_list, test_list, train_label, test_label,
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_dataset = MLP_Dataset(test_list, test_label, config)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    return train_loader, test_loader
+
+
+
+def get_lstm_skeletal_features_data_loader(train_list, test_list, train_label, test_label,
+                                  model_name, max_frames, config):
+
+    batch_size = config.getint(model_name, 'batch_size')
+    n_threads = config.getint(model_name, 'n_threads')
+    train_set = LSTM_Skeletal_Features_Dataset(config, train_list, train_label, max_frames)
+    test_set = LSTM_Skeletal_Features_Dataset(config, test_list, test_label, max_frames)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True,
+                                               num_workers=n_threads, collate_fn=my_collate)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False,
+                                              num_workers=n_threads, collate_fn=my_collate)
+
     return train_loader, test_loader
 
 

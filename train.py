@@ -201,7 +201,7 @@ def main():
 
     # Obtain the PyTorch data loader objects to load batches of the datasets
     full_train_loader, test_loader = get_data_loader(full_train_list, test_list, full_train_label,
-                                                     test_label, model_name, config)
+                                                     test_label, model_name, max_frame_num, config)
 
     print('Total number of samples {} for {}'.format(all_X_list.shape[0], exercise_type))
 
@@ -231,6 +231,9 @@ def main():
     if loss_fn == 'l1':
         print('Loss function: nn.L1Loss()')
         criterion = nn.L1Loss()
+    if loss_fn == 'ls':
+        print('Loss function: nn.MSELoss()')
+        criterion = nn.MSELoss()
     else:
         print('Loss function: nn.MSELoss()')
         criterion = nn.MSELoss()

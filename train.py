@@ -184,24 +184,42 @@ def main():
 
     # transform the labels by taking Log10
     # log_all_y_list = np.log10(all_y_list)
+    ########################################################################
+    # This is to ensure models will alwasy be tested on the same set of test data
+    colab_test_ID = ['B_ID5', 'NE_ID6', 'P_ID6', 'B_ID1', 'S_ID9', 'NE_ID13', 'P_ID11', 'E_ID13', 'P_ID13', 'NE_ID17',
+                     'NE_ID12', 'E_ID10', 'P_ID10', 'E_ID9', 'B_ID6']
 
-    print('Total number of samples {} for {}'.format(all_X_list.shape[0], exercise_type))
+    test_list = pd.Series([])
+    test_label = pd.Series([])
+    for id in colab_test_ID:
+        assert (~all_X_list[all_X_list.index == id].empty)
+        test_list = test_list.append(all_X_list[all_X_list.index == id])
+        test_label = test_label.append(all_y_list[all_y_list.index == id])
 
-    # train, test split
-    # full_train_list --> Train_list + Validation_list    |   test_list
-    full_train_list, test_list, full_train_label, test_label = train_test_split(all_X_list, all_y_list,
-                                                                                test_size=test_size, random_state=seed)
-
-    # full_train_list --> Train_list + Validation_list
-    train_list, valid_list, train_label, valid_label = \
-        train_test_split(full_train_list, full_train_label, test_size=0.1, random_state=seed)
+    full_train_list = all_X_list[~all_X_list.index.isin(colab_test_ID)]
+    full_train_label = all_y_list[~all_y_list.index.isin(colab_test_ID)]
 
     # Obtain the PyTorch data loader objects to load batches of the datasets
     full_train_loader, test_loader = get_data_loader(full_train_list, test_list, full_train_label,
-                                                     test_label, model_name, max_frame_num, config)
+                                                     test_label, model_name, config)
 
-    train_loader, valid_loader = get_data_loader(train_list, valid_list, train_label, valid_label,
-                                                 model_name, max_frame_num, config)
+    print('Total number of samples {} for {}'.format(all_X_list.shape[0], exercise_type))
+
+    # # train, test split
+    # # full_train_list --> Train_list + Validation_list    |   test_list
+    # full_train_list, test_list, full_train_label, test_label = train_test_split(all_X_list, all_y_list,
+    #                                                                             test_size=test_size, random_state=seed)
+    #
+    # # full_train_list --> Train_list + Validation_list
+    # train_list, valid_list, train_label, valid_label = \
+    #     train_test_split(full_train_list, full_train_label, test_size=0.1, random_state=seed)
+
+    # # Obtain the PyTorch data loader objects to load batches of the datasets
+    # full_train_loader, test_loader = get_data_loader(full_train_list, test_list, full_train_label,
+    #                                                  test_label, model_name, max_frame_num, config)
+
+    # train_loader, valid_loader = get_data_loader(train_list, valid_list, train_label, valid_label,
+    #                                              model_name, max_frame_num, config)
 
     ########################################################################
     # Define a Convolutional Neural Network, defined in models
@@ -234,30 +252,40 @@ def main():
 
     start_time = time.time()
     for epoch in range(num_epochs):
-        train_loss[epoch] = train(epoch, model, train_loader, optimizer, criterion)
+        train_loss[epoch] = train(epoch, model, full_train_loader, optimizer, criterion)
         scheduler.step()
 
-        val_loss[epoch] = evaluate(model, valid_loader, criterion)
-        print("Epoch {}: Train loss: {} | Validation loss: {}".format(epoch + 1, train_loss[epoch], val_loss[epoch]))
+        # val_loss[epoch] = evaluate(model, valid_loader, criterion)
+        print("Epoch {}: Train loss: {}".format(epoch + 1, train_loss[epoch]))
 
     print('Finished Training')
     end_time = time.time()
     elapsed_time = end_time - start_time
     print("Total time elapsed: {:.2f} seconds".format(elapsed_time))
-
-    # Train model with all training data:
-    final_train_loss = train(epoch, model, full_train_loader, optimizer, criterion)
-    print("Final Train loss: {}".format(final_train_loss))
+    #
+    # # Train model with all training data:
+    # final_train_loss = train(epoch, model, full_train_loader, optimizer, criterion)
+    # print("Final Train loss: {}".format(final_train_loss))
 
     # Test the final model
     labels_list, outputs_list, test_loss = test(model, test_loader, criterion)
     print("Final Test loss: {}".format(test_loss))
 
+
+    print('Test IDs: ' + str(colab_test_ID))
+    print('Test labels_list:  ' + str(list(np.around(np.array(labels_list), 2))))
+    print('Test predicts_list:' + str(list(np.around(np.array(outputs_list), 2))))
+
+    # Compute Spearman correlation
+    rho, pval = stats.spearmanr(outputs_list, labels_list)
+    print('Spearman correlation coefficient: {0:0.2f} with associated p-value: {1:0.2f}.'.format(rho, pval))
+
     # Change to output directory and create a folder with timestamp
     output_path = config.get('dataset', 'result_output_path')
 
     # Create a directory with TIME_STAMP and model_name to store all outputs
-    output_path = os.path.join(output_path, TIME_STAMP + "_" + model_name)
+    output_path = os.path.join(output_path, '{0}_{1}_loss_{2:0.1f}_spearman_{3:0.2f}'.format(
+        TIME_STAMP, model_name, test_loss, rho))
     if should_use_skeletal_video:
         output_path += '_Skeletal_video'
     try:
@@ -287,6 +315,10 @@ def main():
 
     # Create a scatterplot of test results
     plot_labels_and_outputs(labels_list, outputs_list, config, model_name, test_loss)
+
+    # Save test results to txt file
+    record_test_results(output_path, colab_test_ID, labels_list, outputs_list, test_loss, model_name, config)
+
     plt.close()
 if __name__ == '__main__':
     main()

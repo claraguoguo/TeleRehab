@@ -261,7 +261,8 @@ def get_data_loader(train_list, test_list, train_label, test_label, model_name, 
     # TODO: Normalize Image (center / min-max) & Map rgb --> [0, 1]
     spatial_transform = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.CenterCrop(frame_size),
+        transforms.CenterCrop((540, 500)),
+        transforms.Scale(frame_size),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)])
 
@@ -294,7 +295,8 @@ def get_weighted_loss_data_loader(train_list, test_list, train_label, test_label
     # TODO: Normalize Image (center / min-max) & Map rgb --> [0, 1]
     spatial_transform = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.CenterCrop(frame_size),
+        transforms.CenterCrop((540, 500)),
+        transforms.Scale(frame_size),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)])
 

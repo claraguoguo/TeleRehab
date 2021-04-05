@@ -262,7 +262,7 @@ def get_data_loader(train_list, test_list, train_label, test_label, model_name, 
     spatial_transform = transforms.Compose([
         transforms.ToPILImage(),
         transforms.CenterCrop((540, 500)),
-        transforms.Resize(frame_size),
+        transforms.Resize((frame_size, frame_size)),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)])
 
@@ -296,7 +296,7 @@ def get_weighted_loss_data_loader(train_list, test_list, train_label, test_label
     spatial_transform = transforms.Compose([
         transforms.ToPILImage(),
         transforms.CenterCrop((540, 500)),
-        transforms.Resize(frame_size),
+        transforms.Resize((frame_size, frame_size)),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)])
 
@@ -379,7 +379,7 @@ def check_transformation(video_names):
     test_spatial_transform = transforms.Compose([
         transforms.ToPILImage(),
         transforms.CenterCrop((540, 500)),
-        transforms.Resize(112),
+        transforms.Resize((112, 112)),
         transforms.ToTensor()])
 
     for video in video_names:

@@ -5,7 +5,7 @@ import os
 import skvideo.io
 import numpy as np
 from sklearn.model_selection import train_test_split
-
+import json
 from model import generate_model
 from opts import parse_opts
 
@@ -156,14 +156,14 @@ class LSTM_Dataset_Wrapper(LSTM_Dataset):
 
 class LSTM_Skeletal_Features_Dataset(data.Dataset):
     "Characterizes a dataset for PyTorch"
-    def __init__(self, config, inputs, labels, max_frames):
+    def __init__(self, config, inputs, labels, max_frames, model_name):
         "Initialization"
         self.config = config
         self.labels = labels
         self.inputs = inputs
         self.max_frames = max_frames
         self.skeletal_features_path = config.get('dataset', 'skeletal_features_all_timestamps_path')
-        self.num_features = config.getint('lstm', 'n_features')
+        self.feat_indices = json.loads(config.get(model_name, 'feat_indices'))
 
     def __len__(self):
         "Denotes the total number of samples"
@@ -183,7 +183,9 @@ class LSTM_Skeletal_Features_Dataset(data.Dataset):
             txt_file_name = txt_file_name[:-1]
 
         data = np.loadtxt(os.path.join(self.skeletal_features_path, txt_file_name + ".txt"), delimiter=',')
-        data = data[:, :self.num_features]
+
+        # Get the specified features
+        data = data[:, self.feat_indices]
         # Convert numpy array to tensor
         X = torch.from_numpy(data)
 
@@ -205,15 +207,15 @@ class LSTM_Skeletal_Features_Dataset(data.Dataset):
 
 
 
-## ---------------------- MLP Dataloader ---------------------- ##
+## ---------------------- NN Dataloader ---------------------- ##
 
-class MLP_Dataset(data.Dataset):
+class NN_Dataset(data.Dataset):
 
-    def __init__(self, X, y, config):
+    def __init__(self, X, y, config, model_name):
         self.features = X
         self.label = y
         self.skeletal_features_path = config.get('dataset', 'skeletal_features_path')
-        self.num_features = config.getint('mlp', 'n_features')
+        self.feat_indices = json.loads(config.get(model_name, 'feat_indices'))
 
     def __len__(self):
         return len(self.features)
@@ -231,8 +233,9 @@ class MLP_Dataset(data.Dataset):
             txt_file_name = txt_file_name[:-1]
 
         data = np.loadtxt(os.path.join(self.skeletal_features_path, txt_file_name + ".txt"), delimiter=',')
+        # Get the specified features
+        data = data[:, self.feat_indices]
 
-        data = data[:, :self.num_features]
         # Convert numpy array to tensor
         X = torch.from_numpy(data)
         # Flatten X

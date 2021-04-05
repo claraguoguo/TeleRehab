@@ -368,7 +368,7 @@ def main():
     fps = 10
     n_joints = config.getint(model_name, 'n_joints')
     n_layer = config.getint(model_name, 'n_layer')
-    num_features = config.getint(model_name, 'n_features')
+    num_features = len(json.loads(config.get(model_name, 'feat_indices')))
     output_path = os.path.join(output_path, f"{TIME_STAMP}_{model_name}_fps_{fps}_joints_{n_joints}_layers_{n_layer}_features_{num_features}")
 
     try:
@@ -402,7 +402,7 @@ def main():
 
     else:
         # Save test results to txt file
-        record_test_results(output_path, colab_test_ID, labels_list, predict_list, test_loss)
+        record_test_results(output_path, colab_test_ID, labels_list, predict_list, test_loss, model_name, config)
         # Plot test results
         plot_labels_and_outputs(labels_list, predict_list, config, model_name, colab_test_ID, test_loss)
         # Plot training loss

@@ -2,7 +2,7 @@
 from models.model_names import *
 import torchvision.models as models
 import torch
-
+import json
 
 def generate_model(model_name, max_num_frame, config):
     if model_name == 'cnn':
@@ -37,7 +37,7 @@ def generate_model(model_name, max_num_frame, config):
         n_joints = config.getint(model_name, 'n_joints')
         n_categories = config.getint(model_name, 'n_categories')
         n_layer = config.getint(model_name, 'n_layer')
-        n_features = config.getint(model_name, 'n_features')
+        n_features = len(json.loads(config.get(model_name, 'feat_indices')))
         should_use_features = config.getint(model_name, 'should_use_features')
         if(should_use_features):
             model = LSTM(n_features, hidden_dim, n_categories, n_layer, max_num_frame)
@@ -47,10 +47,17 @@ def generate_model(model_name, max_num_frame, config):
 
     elif model_name == 'mlp':
         n_repetition = config.getint('dataset', 'n_repetition')
-        n_features = config.getint(model_name, 'n_features')
+        n_features =  len(json.loads(config.get(model_name, 'feat_indices')))
         input_dim = n_features * n_repetition
         model = MLP(input_dim)
         print("Loading MLP model")
+
+    elif model_name == 'linearReg':
+        n_repetition = config.getint('dataset', 'n_repetition')
+        n_features = len(json.loads(config.get(model_name, 'feat_indices')))
+        input_dim = n_features * n_repetition
+        model = LinearReg(input_dim)
+        print("Loading linearReg model")
     else:
         print('Invalid model name')
         assert False

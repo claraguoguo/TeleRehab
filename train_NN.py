@@ -28,7 +28,7 @@ def test(model, test_loader, criterion):
         with torch.no_grad():
             model.eval()
             # Get model outputs
-            predictions = model(inputs)
+            predictions = model(inputs.float())
 
             predict_list += predictions.flatten().tolist()
 
@@ -53,7 +53,7 @@ def train(epoch, model, loader, optimizer, criterion):
         optimizer.zero_grad()
 
         # Forward pass, backward pass, and optimize
-        predictions = model(inputs)
+        predictions = model(inputs.float())
 
         loss = criterion(input=predictions.squeeze(), target=labels.float())
 
@@ -116,7 +116,7 @@ def main():
     full_train_label = all_y_list[~all_y_list.index.isin(colab_test_ID)]
 
     # Obtain the PyTorch data loader objects to load batches of the datasets
-    full_train_loader, test_loader = get_mlp_data_loader(full_train_list, test_list, full_train_label,
+    full_train_loader, test_loader = get_nn_data_loader(full_train_list, test_list, full_train_label,
                                                      test_label, model_name, config)
 
     # Load model
@@ -151,9 +151,12 @@ def main():
 
     # Create a directory with TIME_STAMP and model_name to store all outputs
     output_path = config.get('dataset', 'result_output_path')
-    num_features = config.getint(model_name, 'n_features')
-    output_path = os.path.join(output_path, '{0}_{1}_loss_{2:0.1f}_features_{3}'.format(
-        TIME_STAMP, model_name, test_loss, num_features))
+
+    feat_indices = json.loads(config.get(model_name, 'feat_indices'))
+    num_features = len(feat_indices)
+
+    output_path = os.path.join(output_path, '{0}_{1}_features_{2}_loss_{3:0.1f}_spearman_{4:0.2f}'.format(
+        TIME_STAMP, model_name, feat_indices, test_loss, rho))
     try:
         os.mkdir(output_path)
         os.chdir(output_path)
@@ -161,7 +164,7 @@ def main():
         print("Creation of the directory %s failed!" % output_path)
 
     # Save test results to txt file
-    record_test_results(output_path, colab_test_ID, labels_list, predict_list, test_loss)
+    record_test_results(output_path, colab_test_ID, labels_list, predict_list, test_loss, model_name, config)
     # Plot test results
     plot_labels_and_outputs(labels_list, predict_list, config, model_name, colab_test_ID, test_loss)
     # Plot training loss

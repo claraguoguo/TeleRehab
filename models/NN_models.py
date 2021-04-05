@@ -35,3 +35,12 @@ class MLP(nn.Module):
 
       x = self.fc3(x)
       return x
+
+class LinearReg(nn.Module):
+    def __init__(self, inputSize):
+        super(LinearReg, self).__init__()
+        self.linear = nn.Linear(inputSize, 1)
+
+    def forward(self, x):
+        out = self.linear(x)
+        return out

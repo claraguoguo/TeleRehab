@@ -32,22 +32,30 @@ def plot_confusion_matrix(cm, auc, model_name, config):
     epoch = config.getint(model_name, 'epoch')
     plt.savefig("cm_auc_{}_epoch_{}.png".format(auc, epoch))
 
-def record_test_results(output_path, test_ID, labels_list, predict_list, test_loss):
+def record_test_results(output_path, test_ID, labels_list, predict_list, test_loss, model_name, config):
     # Save metrics results into a text file
     content = ''
     file_name = os.path.join(output_path, "Test_Results.txt")
 
     # Compute spearman correlation and p-value
     rho, pval = stats.spearmanr(predict_list, labels_list)
+
+    # TODO: Get features from 'faeture_info'. Now it's hard coded
+    features = ['left_elbow_angle', 'right_elbow_angle', 'hand_dist_ratio', 'torso_tilted_angle', 'hand_tilted_angle', 'elbow_angles_diff']
+    feat_indices = json.loads(config.get(model_name, 'feat_indices'))
+    selected_features = [features[index] for index in feat_indices]
+
     with open(file_name, "w") as text_file:
         print(content, file=text_file)
         print('Test IDs: ' + str(test_ID), file=text_file)
         print('Test labels_list: ' + str(list(np.around(np.array(labels_list), 2))), file=text_file)
         print('Test predicts_list:' + str(list(np.around(np.array(predict_list), 2))), file=text_file)
 
-        print("Test loss: {:0.2f}".format(test_loss), file=text_file)
+        print("Test loss: {:0.4f}".format(test_loss), file=text_file)
 
-        print('Spearman correlation coefficient: {0:0.2f} with p-value: {1:0.2f}'.format(rho, pval), file=text_file)
+        print("Selected skeletal features: " + str(selected_features), file=text_file)
+        print('Spearman correlation coefficient: {0:0.4f} with p-value: {1:0.4f}'.format(rho, pval), file=text_file)
+
 
 def write_binary_classifier_metrics(y_true, y_pred, y_pred_prob, y_IDs, model_name, config):
     print('\n Binary Classifier Metrics Results')
@@ -131,6 +139,7 @@ def plot_labels_and_outputs(labels, outputs, config, model_name, ids, test_loss)
     bs = config.getint(model_name, 'batch_size')
     loss_fn = config.get(model_name, 'loss')
     fps = config.get('dataset', 'fps')
+    feat_indices = json.loads(config.get(model_name, 'feat_indices'))
 
     # Compute spearman correlation and p-value
     rho, _ = stats.spearmanr(outputs, labels)
@@ -152,9 +161,11 @@ def plot_labels_and_outputs(labels, outputs, config, model_name, ids, test_loss)
     plt.xlabel("Test Data")
     plt.legend(loc='best')
     plt.xticks(x, ids, fontsize=8, rotation=45)
-    plt.title("Scatter plot of Actual v.s. Predicted Scores \n Test loss: {6:0.2f} Spearman Corr: {7:0.2f} \n" 
-              "{0}_{1}_lr{2}_epoch{3}_bs{4}_fps{5}".format(
-        model_name, loss_fn, lr, epoch, bs, fps, test_loss, rho), fontsize=10)
+    plt.title("Scatter plot of Actual v.s. Predicted Scores "
+              "\nTest loss: {6:0.2f} Spearman Corr: {7:0.2f} Features_Ind:{8}"
+              "\n{0}_{1}_lr{2}_epoch{3}_bs{4}_fps{5}".format(
+        model_name, loss_fn, lr, epoch, bs, fps, test_loss, rho, feat_indices), fontsize=10)
+
     plt.savefig("{0}_{1}_{6:0.1f}_spearman_{7:0.1f}_lr{2}_epoch{3}_bs{4}_fps{5}.png".format(
         model_name, loss_fn, lr, epoch, bs, fps, test_loss, rho))
     plt.close()
@@ -296,12 +307,12 @@ def my_collate(batch):
     batch = list(filter(lambda x : x is not None, batch))
     return torch.utils.data.dataloader.default_collate(batch)
 
-def get_mlp_data_loader(train_list, test_list, train_label, test_label,
+def get_nn_data_loader(train_list, test_list, train_label, test_label,
                                   model_name, config):
     batch_size = config.getint(model_name, 'batch_size')
-    train_dataset = MLP_Dataset(train_list, train_label, config)
+    train_dataset = NN_Dataset(train_list, train_label, config, model_name)
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    test_dataset = MLP_Dataset(test_list, test_label, config)
+    test_dataset = NN_Dataset(test_list, test_label, config, model_name)
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
     return train_loader, test_loader
 
@@ -312,8 +323,8 @@ def get_lstm_skeletal_features_data_loader(train_list, test_list, train_label, t
 
     batch_size = config.getint(model_name, 'batch_size')
     n_threads = config.getint(model_name, 'n_threads')
-    train_set = LSTM_Skeletal_Features_Dataset(config, train_list, train_label, max_frames)
-    test_set = LSTM_Skeletal_Features_Dataset(config, test_list, test_label, max_frames)
+    train_set = LSTM_Skeletal_Features_Dataset(config, train_list, train_label, max_frames, model_name)
+    test_set = LSTM_Skeletal_Features_Dataset(config, test_list, test_label, max_frames, model_name)
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True,
                                                num_workers=n_threads, collate_fn=my_collate)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False,

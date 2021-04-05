@@ -372,3 +372,23 @@ def get_max_line_counts(file_root):
         file_count += 1
     print("Iterate through {0} files, max line counts: {1}".format(file_count, max_lines))
     return max_lines
+
+
+def check_transformation(video_names):
+    # Load data
+    test_spatial_transform = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.CenterCrop((540, 500)),
+        transforms.Scale(112),
+        transforms.ToTensor()])
+
+    for video in video_names:
+        X = skvideo.io.vread(video, outputdict={'-r': "1"})  # (frames, height, width, channel)
+        X_list = []
+        for i in range(X.shape[0]):
+            X_list.append(test_spatial_transform(X[i]))
+
+        X = torch.stack(X_list, dim=0)  # [frames * channels * height * weight]
+        # check input
+        plt.imshow(X[0, :].permute(1, 2, 0))
+        plt.savefig("transformation_check/" + video.split('/')[-1].split('.')[0] + ".png")

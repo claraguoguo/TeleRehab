@@ -40,11 +40,6 @@ def record_test_results(output_path, test_ID, labels_list, predict_list, test_lo
     # Compute spearman correlation and p-value
     rho, pval = stats.spearmanr(predict_list, labels_list)
 
-    # TODO: Get features from 'faeture_info'. Now it's hard coded
-    features = ['left_elbow_angle', 'right_elbow_angle', 'hand_dist_ratio', 'torso_tilted_angle', 'hand_tilted_angle', 'elbow_angles_diff']
-    feat_indices = json.loads(config.get(model_name, 'feat_indices'))
-    selected_features = [features[index] for index in feat_indices]
-
     with open(file_name, "w") as text_file:
         print(content, file=text_file)
         print('Test IDs: ' + str(test_ID), file=text_file)
@@ -53,8 +48,15 @@ def record_test_results(output_path, test_ID, labels_list, predict_list, test_lo
 
         print("Test loss: {:0.4f}".format(test_loss), file=text_file)
 
-        print("Selected skeletal features: " + str(selected_features), file=text_file)
         print('Spearman correlation coefficient: {0:0.4f} with p-value: {1:0.4f}'.format(rho, pval), file=text_file)
+        if (model_name not in ['cnn', 'resnet', 'c3d']):
+            # TODO: Get features from 'faeture_info'. Now it's hard coded
+            features = ['left_elbow_angle', 'right_elbow_angle', 'hand_dist_ratio', 'torso_tilted_angle',
+                        'hand_tilted_angle', 'elbow_angles_diff']
+            feat_indices = json.loads(config.get(model_name, 'feat_indices'))
+            selected_features = [features[index] for index in feat_indices]
+
+            print("Selected skeletal features: " + str(selected_features), file=text_file)
 
 
 def write_binary_classifier_metrics(y_true, y_pred, y_pred_prob, y_IDs, model_name, config):
@@ -139,7 +141,6 @@ def plot_labels_and_outputs(labels, outputs, config, model_name, ids, test_loss)
     bs = config.getint(model_name, 'batch_size')
     loss_fn = config.get(model_name, 'loss')
     fps = config.get('dataset', 'fps')
-    feat_indices = json.loads(config.get(model_name, 'feat_indices'))
 
     # Compute spearman correlation and p-value
     rho, _ = stats.spearmanr(outputs, labels)
@@ -161,10 +162,19 @@ def plot_labels_and_outputs(labels, outputs, config, model_name, ids, test_loss)
     plt.xlabel("Test Data")
     plt.legend(loc='best')
     plt.xticks(x, ids, fontsize=8, rotation=45)
-    plt.title("Scatter plot of Actual v.s. Predicted Scores "
-              "\nTest loss: {6:0.2f} Spearman Corr: {7:0.2f} Features_Ind:{8}"
-              "\n{0}_{1}_lr{2}_epoch{3}_bs{4}_fps{5}".format(
-        model_name, loss_fn, lr, epoch, bs, fps, test_loss, rho, feat_indices), fontsize=10)
+    if (model_name not in ['cnn', 'resnet', 'c3d']):
+        # 3D-CNN models' config section do not have 'feat_indices'
+        feat_indices = json.loads(config.get(model_name, 'feat_indices'))
+
+        plt.title("Scatter plot of Actual v.s. Predicted Scores "
+                  "\nTest loss: {6:0.2f} Spearman Corr: {7:0.2f} Features_Ind:{8}"
+                  "\n{0}_{1}_lr{2}_epoch{3}_bs{4}_fps{5}".format(
+            model_name, loss_fn, lr, epoch, bs, fps, test_loss, rho, feat_indices), fontsize=10)
+    else:
+        plt.title("Scatter plot of Actual v.s. Predicted Scores "
+                  "\nTest loss: {6:0.2f} Spearman Corr: {7:0.2f}"
+                  "\n{0}_{1}_lr{2}_epoch{3}_bs{4}_fps{5}".format(
+            model_name, loss_fn, lr, epoch, bs, fps, test_loss, rho), fontsize=10)
 
     plt.savefig("{0}_{1}_{6:0.1f}_spearman_{7:0.1f}_lr{2}_epoch{3}_bs{4}_fps{5}.png".format(
         model_name, loss_fn, lr, epoch, bs, fps, test_loss, rho))

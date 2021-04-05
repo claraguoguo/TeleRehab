@@ -317,11 +317,10 @@ def main():
     generate_result_plots(model_name, test_loss, config)
 
     # Create a scatterplot of test results
-    plot_labels_and_outputs(labels_list, outputs_list, config, model_name, test_loss)
+    plot_labels_and_outputs(labels_list, outputs_list, config, model_name, colab_test_ID, test_loss)
 
     # Save test results to txt file
-    record_test_results(output_path, colab_test_ID, labels_list, outputs_list, test_loss, model_name, config)
+    record_test_results(os.getcwd(), colab_test_ID, labels_list, outputs_list, test_loss, model_name, config)
 
-    plt.close()
 if __name__ == '__main__':
     main()

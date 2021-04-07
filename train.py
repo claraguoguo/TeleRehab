@@ -171,6 +171,8 @@ def main():
     all_X_list = df['video_name']                         # all video file names
     all_y_list = df[exercise_label_text]                  # all video labels
 
+    # Test transformation
+    # check_transformation(all_X_list, exercise_type)
     ########################################################################
     # Change video path to skeletal video location
     should_use_skeletal_video = config.getint('dataset', 'should_use_skeletal_video')

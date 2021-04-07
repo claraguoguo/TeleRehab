@@ -374,8 +374,12 @@ def get_max_line_counts(file_root):
     return max_lines
 
 
-def check_transformation(video_names):
+def check_transformation(video_names, exercise_type):
     # Load data
+    try:
+        os.makedirs(f"transformation_check_{exercise_type}/")
+    except OSError as e:
+        raise
     test_spatial_transform = transforms.Compose([
         transforms.ToPILImage(),
         transforms.CenterCrop((540, 500)),
@@ -391,4 +395,4 @@ def check_transformation(video_names):
         X = torch.stack(X_list, dim=0)  # [frames * channels * height * weight]
         # check input
         plt.imshow(X[0, :].permute(1, 2, 0))
-        plt.savefig("transformation_check/" + video.split('/')[-1].split('.')[0] + ".png")
+        plt.savefig(f"transformation_check_{exercise_type}/" + video.split('/')[-1].split('.')[0] + ".png")

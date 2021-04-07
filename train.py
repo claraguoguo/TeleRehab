@@ -150,7 +150,7 @@ def main():
         max_video_sec = data_loader.max_video_sec
 
     # Maximum number of frames (will be used for zero padding)
-    max_frame_num = max_video_sec * fps
+    max_frame_num = int(max_video_sec) * fps
     ########################################################################
     # Fixed PyTorch random seed for reproducible result
     seed = config.getint('random_state', 'seed')
@@ -171,18 +171,19 @@ def main():
     all_X_list = df['video_name']                         # all video file names
     all_y_list = df[exercise_label_text]                  # all video labels
 
-    # Test transformation
-    # check_transformation(all_X_list, exercise_type)
     ########################################################################
     # Change video path to skeletal video location
     should_use_skeletal_video = config.getint('dataset', 'should_use_skeletal_video')
-    skeletal_video_path = config.get('dataset', 'skeletal_video_path')
+    skeletal_video_path = config.get('dataset', 'skeletal_video_path') + "_" + exercise_type
     if (should_use_skeletal_video):
         f = lambda row: os.path.join(skeletal_video_path,
                                      os.path.join(*(row.video_name.split("/")[6:])).replace("/", "_").split(".")[0],
                                      'openpose.avi')
         df['skeletal_video_path'] = df.apply(f, axis=1)
         all_X_list = df['skeletal_video_path']
+
+    # Test transformation
+    # check_transformation(all_X_list, exercise_type)
 
     # transform the labels by taking Log10
     # log_all_y_list = np.log10(all_y_list)

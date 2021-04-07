@@ -100,6 +100,9 @@ class KiMoReDataLoader(object):
                         print('Wrong subject_ID type!')
                         assert False
 
+                    # insert video length to df
+                    self.df.loc[subject_ID, 'video_seconds'] = duration
+
                     # insert video name to df
                     self.df.loc[subject_ID, 'video_name'] = video_name
                     print(video_name)

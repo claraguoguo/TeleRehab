@@ -287,8 +287,8 @@ def main():
     output_path = config.get('dataset', 'result_output_path')
 
     # Create a directory with TIME_STAMP and model_name to store all outputs
-    output_path = os.path.join(output_path, '{0}_{1}_loss_{2:0.1f}_spearman_{3:0.2f}'.format(
-        TIME_STAMP, model_name, test_loss, rho))
+    output_path = os.path.join(output_path, '{0}_{4}_{1}_loss_{2:0.1f}_spearman_{3:0.2f}'.format(
+        TIME_STAMP, model_name, test_loss, rho, exercise_type))
     if should_use_skeletal_video:
         output_path += '_Skeletal_video'
     try:

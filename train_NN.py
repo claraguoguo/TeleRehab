@@ -155,8 +155,8 @@ def main():
     feat_indices = json.loads(config.get(model_name, 'feat_indices'))
     num_features = len(feat_indices)
 
-    output_path = os.path.join(output_path, '{0}_{1}_features_{2}_loss_{3:0.1f}_spearman_{4:0.2f}'.format(
-        TIME_STAMP, model_name, feat_indices, test_loss, rho))
+    output_path = os.path.join(output_path, '{0}_{5}_{1}_features_{2}_loss_{3:0.1f}_spearman_{4:0.2f}'.format(
+        TIME_STAMP, model_name, feat_indices, test_loss, rho, exercise_type))
     try:
         os.mkdir(output_path)
         os.chdir(output_path)

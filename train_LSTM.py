@@ -369,7 +369,8 @@ def main():
     n_joints = config.getint(model_name, 'n_joints')
     n_layer = config.getint(model_name, 'n_layer')
     num_features = len(json.loads(config.get(model_name, 'feat_indices')))
-    output_path = os.path.join(output_path, f"{TIME_STAMP}_{model_name}_fps_{fps}_joints_{n_joints}_layers_{n_layer}_features_{num_features}")
+    output_path = os.path.join(output_path, f"{TIME_STAMP}_{exercise_type}_{model_name}_fps_{fps}_"
+                                            f"joints_{n_joints}_layers_{n_layer}_features_{num_features}")
 
     try:
         os.mkdir(output_path)

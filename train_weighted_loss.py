@@ -181,17 +181,14 @@ def main():
         df_name = exercise_type + '_' + dataset_filter + '_df'
         df = pd.read_pickle(df_name)
         print('Using local df: '+ df_name)
-
-        # TODO: Fix max_video_sec to not be hard-coded
-        max_video_sec = 60
+        max_video_sec = df['video_seconds'].max()
     else:
         # extract_frames_from_video(config)
         data_loader = KiMoReDataLoader(config)
         data_loader.load_data()
         df = data_loader.df
         max_video_sec = data_loader.max_video_sec
-        print('max_video_sec = ' + str(max_video_sec))
-
+    print('max_video_sec = ' + str(max_video_sec))
     # Maximum number of frames (will be used for zero padding)
     max_frame_num = max_video_sec * fps
 

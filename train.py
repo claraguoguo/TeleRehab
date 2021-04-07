@@ -141,7 +141,7 @@ def main():
         df_name = exercise_type + '_' + dataset_filter + '_df'
         df = pd.read_pickle(df_name)
         # TODO: Fix max_video_sec to not be hard-coded
-        max_video_sec = 60
+        max_video_sec = df['video_seconds'].max()
     else:
         # extract_frames_from_video(config)
         data_loader = KiMoReDataLoader(config)

@@ -4,6 +4,7 @@ data_tmp/*
 histogram_pic/
 frames_tmp/
 output_tmp/
+*check*/
 
 GPP_df
 RGB_df

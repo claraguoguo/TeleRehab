@@ -11,6 +11,7 @@ from sklearn import metrics
 import math
 import glob
 from scipy import stats
+import pandas as pd
 
 def getSampler(labels, config):
     binary_threshold = config.getint('dataset', 'binary_threshold')
@@ -40,6 +41,19 @@ def record_test_results(output_path, test_ID, labels_list, predict_list, test_lo
     # Compute spearman correlation and p-value
     rho, pval = stats.spearmanr(predict_list, labels_list)
 
+    should_use_features = model_name not in ['cnn', 'resnet', 'c3d']
+
+    if should_use_features:
+        feature_dir = os.path.dirname(config.get('dataset', 'skeletal_features_path'))
+        feature_info_path = os.path.join(feature_dir, 'features_info.txt')
+        with open(feature_info_path) as f:
+            feature = f.readlines()
+        # you may also want to remove whitespace characters like `\n` at the end of each line
+        features = [x.strip() for x in feature]
+
+        feat_indices = json.loads(config.get(model_name, 'feat_indices'))
+        selected_features = [features[index] for index in feat_indices]
+
     with open(file_name, "w") as text_file:
         print(content, file=text_file)
         print('Test IDs: ' + str(test_ID), file=text_file)
@@ -49,13 +63,7 @@ def record_test_results(output_path, test_ID, labels_list, predict_list, test_lo
         print("Test loss: {:0.4f}".format(test_loss), file=text_file)
 
         print('Spearman correlation coefficient: {0:0.4f} with p-value: {1:0.4f}'.format(rho, pval), file=text_file)
-        if (model_name not in ['cnn', 'resnet', 'c3d']):
-            # TODO: Get features from 'faeture_info'. Now it's hard coded
-            features = ['left_elbow_angle', 'right_elbow_angle', 'hand_dist_ratio', 'torso_tilted_angle',
-                        'hand_tilted_angle', 'elbow_angles_diff']
-            feat_indices = json.loads(config.get(model_name, 'feat_indices'))
-            selected_features = [features[index] for index in feat_indices]
-
+        if should_use_features:
             print("Selected skeletal features: " + str(selected_features), file=text_file)
 
 
@@ -162,6 +170,7 @@ def plot_labels_and_outputs(labels, outputs, config, model_name, ids, test_loss)
     plt.xlabel("Test Data")
     plt.legend(loc='best')
     plt.xticks(x, ids, fontsize=8, rotation=45)
+
     if (model_name not in ['cnn', 'resnet', 'c3d']):
         # 3D-CNN models' config section do not have 'feat_indices'
         feat_indices = json.loads(config.get(model_name, 'feat_indices'))
@@ -373,6 +382,21 @@ def get_max_line_counts(file_root):
     print("Iterate through {0} files, max line counts: {1}".format(file_count, max_lines))
     return max_lines
 
+def get_fixed_test_data(all_X_list, all_y_list):
+    fixed_colab_test_ID = ['B_ID5', 'NE_ID6', 'P_ID6', 'B_ID1', 'S_ID9', 'NE_ID13', 'P_ID11', 'E_ID13', 'P_ID13',
+                           'NE_ID17', 'NE_ID12', 'E_ID10', 'P_ID10', 'E_ID9', 'B_ID6']
+    colab_test_ID = []
+    test_list = pd.Series([])
+    test_label = pd.Series([])
+    for id in fixed_colab_test_ID:
+        if all_X_list[all_X_list.index == id].empty == True:
+            print(f'Test ID: {id} is missing!')
+            continue
+        test_list = test_list.append(all_X_list[all_X_list.index == id])
+        test_label = test_label.append(all_y_list[all_y_list.index == id])
+        colab_test_ID.append(id)
+
+    return colab_test_ID, test_list, test_label
 
 def check_transformation(video_names, exercise_type):
     # Load data

@@ -109,16 +109,8 @@ def main():
     all_y_list = df[exercise_label_text]                  # all video labels
 
     # This is to ensure LSTM and 3d-CNN models will be tested on the same set of test data
-    colab_test_ID = ['B_ID5', 'NE_ID6', 'P_ID6', 'B_ID1', 'S_ID9', 'NE_ID13', 'P_ID11', 'E_ID13', 'P_ID13', 'NE_ID17',
-                     'NE_ID12', 'E_ID10', 'P_ID10', 'E_ID9', 'B_ID6']
-
-    test_list = pd.Series([])
-    test_label = pd.Series([])
-    for id in colab_test_ID:
-        assert (~all_X_list[all_X_list.index == id].empty)
-        test_list = test_list.append(all_X_list[all_X_list.index == id])
-        test_label = test_label.append(all_y_list[all_y_list.index == id])
-
+    colab_test_ID, test_list, test_label = get_fixed_test_data(all_X_list, all_y_list)
+    
     full_train_list = all_X_list[~all_X_list.index.isin(colab_test_ID)]
     full_train_label = all_y_list[~all_y_list.index.isin(colab_test_ID)]
 

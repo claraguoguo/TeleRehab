@@ -5,6 +5,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 from opts import parse_opts
 from util import *
+from load_data import *
 from plot_train import *
 
 from datetime import datetime
@@ -79,14 +80,28 @@ def main():
 
     model_name = args.model_name
     num_epochs = config.getint(model_name, 'epoch')
-
+    ########################################################################
+    # Extract Frames from videos
+    should_use_local_df = config.getint('dataset', 'should_use_local_df')
+    fps = config.getint('dataset', 'fps')
     exercise_type = config.get('dataset', 'exercise_type')
     exercise_label_text = config.get('dataset', 'exercise_label_text')
-    df_path = config.get('dataset', 'df_path')
-    change_dir(df_path)
-    dataset_filter = config.get('dataset', 'dataset_filter')
-    df_name = exercise_type + '_' + dataset_filter + '_df'
-    df = pd.read_pickle(df_name)
+
+    if should_use_local_df:
+        print('Using local df')
+        df_path = config.get('dataset', 'df_path')
+        change_dir(df_path)
+        dataset_filter = config.get('dataset', 'dataset_filter')
+        df_name = exercise_type + '_' + dataset_filter + '_df'
+        df = pd.read_pickle(df_name)
+        # TODO: Fix max_video_sec to not be hard-coded
+        max_video_sec = df['video_seconds'].max()
+    else:
+        # extract_frames_from_video(config)
+        data_loader = KiMoReDataLoader(config)
+        data_loader.load_data()
+        df = data_loader.df
+        max_video_sec = data_loader.max_video_sec
 
     learning_rate = config.getfloat(model_name, 'lr')
     num_epochs = config.getint(model_name, 'epoch')
@@ -160,7 +175,7 @@ def main():
     # Plot test results
     plot_labels_and_outputs(labels_list, predict_list, config, model_name, colab_test_ID, test_loss)
     # Plot training loss
-    plot_training_loss(model_name, 'loss', train_loss, test_loss, config, output_path)
+    # plot_training_loss(model_name, 'loss', train_loss, test_loss, config, output_path)
 
 if __name__ == '__main__':
     main()

@@ -47,7 +47,7 @@ def generate_model(model_name, max_num_frame, config):
 
     elif model_name == 'mlp':
         n_repetition = config.getint('dataset', 'n_repetition')
-        n_features =  len(json.loads(config.get(model_name, 'feat_indices')))
+        n_features = len(json.loads(config.get(model_name, 'feat_indices')))
         input_dim = n_features * n_repetition
         model = MLP(input_dim)
         print("Loading MLP model")

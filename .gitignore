@@ -5,6 +5,8 @@ histogram_pic/
 frames_tmp/
 output_tmp/
 *check*/
+*output*/
+
 
 GPP_df
 RGB_df

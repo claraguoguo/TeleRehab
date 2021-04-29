@@ -106,6 +106,7 @@ class LSTM_Dataset(data.Dataset):
         self.labels = labels
         self.inputs = inputs
         self.max_frames = max_frames
+        # TODO: fixed!!!!
         self.skeletal_data_path = config.get('dataset', 'skeletal_data_path')
 
     def __len__(self):
@@ -233,8 +234,14 @@ class NN_Dataset(data.Dataset):
             txt_file_name = txt_file_name[:-1]
 
         data = np.loadtxt(os.path.join(self.skeletal_features_path, txt_file_name + ".txt"), delimiter=',')
+
         # Get the specified features
-        data = data[:, self.feat_indices]
+        # Handle the special case where there is 1 feature
+        if len(data.shape) == 1:
+            assert len(data.shape) == len(self.feat_indices)
+
+        else:
+            data = data[:, self.feat_indices]
 
         # Convert numpy array to tensor
         X = torch.from_numpy(data)

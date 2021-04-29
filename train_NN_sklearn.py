@@ -136,8 +136,13 @@ def main():
             txt_file_name = txt_file_name[:-1]
 
         data = np.loadtxt(os.path.join(skeletal_features_path, txt_file_name + ".txt"), delimiter=',')
-        # Get the specified features
-        data = data[:, feat_indices]
+        # Handle the special case where there is 1 feature
+        if len(data.shape) == 1:
+            assert len(data.shape) == len(feat_indices)
+
+        else:
+            data = data[:, feat_indices]
+
         # Flatten the data
         data_1D = np.reshape(data, -1)
         train_x = np.vstack([train_x, data_1D])
@@ -153,8 +158,12 @@ def main():
             txt_file_name = txt_file_name[:-1]
 
         data = np.loadtxt(os.path.join(skeletal_features_path, txt_file_name + ".txt"), delimiter=',')
-        # Get the specified features
-        data = data[:, feat_indices]
+        # Handle the special case where there is 1 feature
+        if len(data.shape) == 1:
+            assert len(data.shape) == len(feat_indices)
+
+        else:
+            data = data[:, feat_indices]
         # Flatten the data
         data_1D = np.reshape(data, -1)
         test_x = np.vstack([test_x, data_1D])
@@ -175,8 +184,9 @@ def main():
     elif model_name == 'SVM':
         model = SVR()
 
-    elif model_name == 'KNN':
-        model = KNeighborsRegressor(n_neighbors=5)
+    elif 'KNN' in model_name:
+        n_neighbors = config.getint(model_name, 'n_neighbors')
+        model = KNeighborsRegressor(n_neighbors=n_neighbors)
 
     elif model_name == 'lasso':
         model = Lasso(max_iter=1000, random_state=seed)

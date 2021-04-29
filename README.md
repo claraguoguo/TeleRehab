@@ -1,18 +1,6 @@
 # TeleRehab
 
-<!--
-*** Thanks for checking out the Best-README-Template. If you have a suggestion
-*** that would make this better, please fork the repo and create a pull request
-*** or simply open an issue with the tag "enhancement".
-*** Thanks again! Now go create something AMAZING! :D
-***
-***
-***
-*** To avoid retyping too much info. Do a search and replace for the following:
-*** github_username, repo_name, twitter_handle, email, project_title, project_description
--->
-
-
+This project develops an automated system for assessing physical rehabilitation exercises using RGB data.
 
 <!-- TABLE OF CONTENTS -->
 <details open="open">
@@ -45,20 +33,16 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-
-### Built With
-
-* []()
+This project develops an automated system for assessing physical rehabilitation exercises using RGB data. The end-to-end deep learning approaches (i.e. C3D, 3D-ResNet) and the feature extraction based approaches (i.e. LR, MLP, KNN) were implemented. [KiMoRe](https://github.com/petteriTeikari/KiMoRe_wrapper/wiki) dataset is used for training and testing the models.
 
 
 <!-- GETTING STARTED -->
 ## Getting Started
 
-To get a local copy up and running follow these simple steps.
 
 ### Prerequisites
 
-* 
+* python 3.7
 
 ### Installation
 
@@ -66,21 +50,44 @@ To get a local copy up and running follow these simple steps.
    ```sh
    git clone -b colab https://github.com/claraguoguo/TeleRehab.git
    ```
-
+2. Install common ML libraries i.e. scipy, pandas, numpy, matplotlib, seaborn, ffmpeg...
 
 <!-- USAGE EXAMPLES -->
-## Usage
+## Config
+
+* config.cfg: config file for running code locally
+* colab_config.cfg: config file for running code on Google Golab 
+  
+# Ex1
+* n_repetition = 5
+# Ex2
+* n_repetition = 10
+# Ex3
+* n_repetition = 15
+# Ex4
+* n_repetition = 10
+
+## Run models
+* train.py: train and test deep learning models (cnn, resnet, c3d)
+* train_LSTM.py: train and test LSTM model
+* train_NN.py: train and test MLP and linear regression models
+* train_NN_sklearn.py: train and test sklearn models 
+* train_weighted_loss.py: train and test deep learning models (cnn, resnet, c3d) with weighted loss implementation
+  
+## sample usage: 
+```
+python train.py --config config.cfg --model_name c3d
+```
 
 ## Related Repos
-* Some utility code can be found in [TeleRehab_Utilities](https://github.com/claraguoguo/TeleRehab_Utilities)
+* Code to extract features from skeletal data can be found in [TeleRehab_Utilities](https://github.com/claraguoguo/TeleRehab_Utilities/SkeletalDataUtils)
 
-* Code used to extract skeletal joints with openpose-COCO model can be found at [demo_video_KIMORE.py](https://github.com/claraguoguo/pytorch-openpose/blob/master/demo_video_KIMORE.py). This code is developed on top of [pytorch-openpose](https://github.com/Hzzone/pytorch-openpose).
+* (DEPRECATED) Code used to extract skeletal joints with openpose-COCO model can be found at [demo_video_KIMORE.py](https://github.com/claraguoguo/pytorch-openpose/blob/master/demo_video_KIMORE.py). This code is developed on top of [pytorch-openpose](https://github.com/Hzzone/pytorch-openpose).
 
 ## Useful Resources
 
-Here is a list of useful resources that I found useful:
-
-* [pytorch-openpose](https://github.com/Hzzone/pytorch-openpose) - pytorch implementation of openpose including Body and Hand Pose Estimation
+* [openpose](https://github.com/CMU-Perceptual-Computing-Lab/openpose)
+* [pytorch-openpose](https://github.com/Hzzone/pytorch-openpose) - pytorch implementation of openpose including Body and Hand Pose Estimation (this version works on Apple M1 chip)
 
 
 <!-- CONTACT -->
@@ -88,8 +95,3 @@ Here is a list of useful resources that I found useful:
 
 Clara Guo  - [clara.guo@mail.utoronto.ca](clara.guo@mail.utoronto.ca)
 
-
-<!-- ACKNOWLEDGEMENTS -->
-## Acknowledgements
-
-* []()

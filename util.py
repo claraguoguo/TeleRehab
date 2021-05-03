@@ -33,7 +33,8 @@ def plot_confusion_matrix(cm, auc, model_name, config):
     epoch = config.getint(model_name, 'epoch')
     plt.savefig("cm_auc_{}_epoch_{}.png".format(auc, epoch))
 
-def record_test_results(output_path, test_ID, labels_list, predict_list, test_loss, model_name, config):
+def record_test_results(output_path, test_ID, labels_list, predict_list, test_loss, model_name, config,
+                        cv_scores_mse=[], cv_scores_spearman=[]):
     # Save metrics results into a text file
     content = ''
     file_name = os.path.join(output_path, "Test_Results.txt")
@@ -66,6 +67,12 @@ def record_test_results(output_path, test_ID, labels_list, predict_list, test_lo
         if should_use_features:
             print("Selected skeletal features: " + str(selected_features), file=text_file)
 
+        if len(cv_scores_mse) != 0:
+            print("5-fold Cross Validation Scores (with MSE): {} mean: {:0.2f}".format(
+                cv_scores_mse,cv_scores_mse.mean()), file=text_file)
+        if len(cv_scores_spearman) != 0:
+            print("5-fold Cross Validation Scores (with Spearman): {} mean: {:0.2f}".format(
+                cv_scores_spearman, cv_scores_spearman.mean()), file=text_file)
 
 def write_binary_classifier_metrics(y_true, y_pred, y_pred_prob, y_IDs, model_name, config):
     print('\n Binary Classifier Metrics Results')

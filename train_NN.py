@@ -125,7 +125,7 @@ def main():
     print("Total number of data:{0}  Train:{1}  Test:{2}".format(len(all_X_list), len(full_train_list), len(test_list)))
 
     # Obtain the PyTorch data loader objects to load batches of the datasets
-    full_train_loader, test_loader = get_nn_daTheta_loader(full_train_list, test_list, full_train_label,
+    full_train_loader, test_loader = get_nn_data_loader(full_train_list, test_list, full_train_label,
                                                      test_label, model_name, config)
 
     # Load model

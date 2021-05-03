@@ -10,7 +10,8 @@ from plot_train import *
 from datetime import datetime
 from pytz import timezone
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, make_scorer
+from sklearn.model_selection import cross_val_score, KFold
 from sklearn.neural_network import MLPRegressor
 from sklearn.linear_model import ElasticNet, Lasso
 from sklearn.svm import SVR
@@ -176,10 +177,10 @@ def main():
 
 
     elif model_name == 'linearReg':
-        model = ElasticNet(alpha=1, l1_ratio=0.5, max_iter=5000)
+        model = ElasticNet(alpha=1, l1_ratio=0.5, max_iter=5000, random_state=seed)
 
     elif model_name == 'RF':
-        model = RandomForestRegressor()
+        model = RandomForestRegressor(random_state=seed)
 
     elif model_name == 'SVM':
         model = SVR()
@@ -207,11 +208,28 @@ def main():
     rho, pval = stats.spearmanr(predict_list, labels_list)
     print('Spearman correlation coefficient: {0:0.2f} with associated p-value: {1:0.2f}.'.format(rho, pval))
 
+
+    # Evaluate the model by 5-fold cross-validation
+
+    cv_scores_mse = cross_val_score(model, np.vstack([train_x, test_x]), np.append(train_y, test_y), cv=KFold(n_splits=5),
+                                    scoring='neg_mean_squared_error')
+    cv_scores_mse = -1 * cv_scores_mse
+    print("5-fold Cross Validation Scores (with MSE): {} mean: {:0.2f}".format(cv_scores_mse, cv_scores_mse.mean()))
+
+    def custom_spearmanr(x, y):
+        correlation, _ = stats.spearmanr(x, y)
+        return correlation
+    cv_scores_spearman = cross_val_score(model, np.vstack([train_x, test_x]), np.append(train_y, test_y),cv=KFold(n_splits=5),
+                                        scoring=make_scorer(custom_spearmanr, greater_is_better=True))
+    print("5-fold Cross Validation Scores (with Spearman): {} mean: {:0.2f}".format(cv_scores_spearman,
+                                                                                        cv_scores_spearman.mean()))
+
     # Create a directory with TIME_STAMP and model_name to store all outputs
     output_path = config.get('dataset', 'result_output_path')
 
-    output_path = os.path.join(output_path, '{0}_sk_{1}_features_{2}_loss_{3:0.1f}_spearman_{4:0.2f}'.format(
-        TIME_STAMP, model_name, feat_indices, test_loss, rho))
+    output_path = os.path.join(output_path, '{0}_sk_{1}_features_{2}_loss_{3:0.1f}_spear_{4:0.2f}_cvMSE_{5:0.2f}'
+                                            '_cvSpear_{6:0.2f}'.format(
+        TIME_STAMP, model_name, feat_indices, test_loss, rho, cv_scores_mse.mean(), cv_scores_spearman.mean()))
     try:
         os.mkdir(output_path)
         os.chdir(output_path)
@@ -219,7 +237,8 @@ def main():
         print("Creation of the directory %s failed!" % output_path)
 
     # Save test results to txt file
-    record_test_results(output_path, colab_test_ID, labels_list, predict_list, test_loss, model_name, config)
+    record_test_results(output_path, colab_test_ID, labels_list, predict_list, test_loss, model_name, config,
+                        cv_scores_mse, cv_scores_spearman)
     # Plot test results
     plot_labels_and_outputs(labels_list, predict_list, config, model_name, colab_test_ID, test_loss)
     # Plot training loss

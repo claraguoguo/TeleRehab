@@ -149,7 +149,7 @@ def plot_training_loss(model_name, type, train_data, test_loss, config, output_p
     plt.close()
 
 
-def plot_labels_and_outputs(labels, outputs, config, model_name, ids, test_loss):
+def plot_labels_and_outputs(labels, outputs, config, model_name, ids, test_loss, plot_name=''):
     plt.figure()
     epoch = config.getint(model_name, 'epoch')
     lr = config.getfloat(model_name, 'lr')
@@ -192,8 +192,11 @@ def plot_labels_and_outputs(labels, outputs, config, model_name, ids, test_loss)
                   "\n{0}_{1}_lr{2}_epoch{3}_bs{4}_fps{5}".format(
             model_name, loss_fn, lr, epoch, bs, fps, test_loss, rho), fontsize=10)
 
-    plt.savefig("{0}_{1}_{6:0.1f}_spearman_{7:0.1f}_lr{2}_epoch{3}_bs{4}_fps{5}.png".format(
-        model_name, loss_fn, lr, epoch, bs, fps, test_loss, rho))
+
+    if not plot_name:
+        plot_name = "{0}_{1}_{6:0.1f}_spearman_{7:0.1f}_lr{2}_epoch{3}_bs{4}_fps{5}.png".format(
+            model_name, loss_fn, lr, epoch, bs, fps, test_loss, rho)
+    plt.savefig(plot_name)
     plt.close()
 
 def change_dir(new_dir):

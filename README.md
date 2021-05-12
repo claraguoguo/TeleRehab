@@ -66,6 +66,8 @@ This project develops an automated system for assessing physical rehabilitation 
 * n_repetition = 15
 # Ex4
 * n_repetition = 10
+# Ex5
+* n_repetition = 10
 
 ## Run models
 * train.py: train and test deep learning models (cnn, resnet, c3d)

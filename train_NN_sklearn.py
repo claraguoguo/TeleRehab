@@ -16,7 +16,7 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.linear_model import ElasticNet, Lasso
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
-
+from sklearn.preprocessing import MinMaxScaler
 
 # Get current (EST) time stamp
 fmt = "%Y-%m-%d %H:%M:%S %Z%z"
@@ -80,12 +80,46 @@ def train(epoch, model, loader, optimizer, criterion):
     loss = float(total_train_loss) / (i + 1)
     return loss
 
-def main():
+def load_data_from_txt(data_list, y_df, ID_names, skeletal_features_path, feat_indices, input_dim):
+    x = np.array([]).reshape(0, input_dim)
+    y = np.array([])
+    for video_path in data_list:
+        subject_ID = video_path.split('/')[-6:][2]
+        txt_file_name = os.path.join(*(video_path.split('/')[-6:])).replace("/", "_").split(".")[0]
+
+        if (txt_file_name[-1] == "_"):
+            # TODO: need a better fix
+            # Naming is inconsistent in KIMORE, some videos has an extra underscore. The extra underscore needs to be removed
+            # i.e. 'CG_Expert_E_ID9_Es1_rgb_Blur_rgb271114_123334_'
+            txt_file_name = txt_file_name[:-1]
+
+        feature_txt_file = os.path.join(skeletal_features_path, txt_file_name + ".txt")
+
+        if os.path.isfile(feature_txt_file):
+            # if file exists
+            data = np.loadtxt(feature_txt_file, delimiter=',')
+            # Handle the special case where there is only 1 feature
+            if len(data.shape) == 1:
+                assert len(data.shape) == len(feat_indices)
+
+            else:
+                data = data[:, feat_indices]
+
+            # Flatten the data
+            data_1D = np.reshape(data, -1)
+            x = np.vstack([x, data_1D])
+            y = np.append(y, y_df[subject_ID])
+            ID_names.append(subject_ID)
+
+    return x, y, ID_names
+
+def main(model_name):
     # Load args and config
     args = parse_opts()
-    config = get_config(args.config)
 
-    model_name = args.model_name
+    # config = get_config(args.config)
+    config = get_config('/Users/Clara_1/Documents/University/Year4/Thesis/Code/TeleRehab/config.cfg')
+    # model_name = args.model_name
     num_epochs = config.getint(model_name, 'epoch')
 
     exercise_type = config.get('dataset', 'exercise_type')
@@ -123,58 +157,26 @@ def main():
     n_repetition = config.getint('dataset', 'n_repetition')
     input_dim = n_features * n_repetition
 
-    train_x = test_x = np.array([]).reshape(0, input_dim)
-    train_y = np.array(full_train_label.to_list())
-    test_y = np.array(test_label.to_list())
-    # Load data from the text file
-    for video_path in full_train_list:
-        txt_file_name = os.path.join(*(video_path.split('/')[-6:])).replace("/", "_").split(".")[0]
+    # train_y = np.array(full_train_label.to_list())
+    # test_y = np.array(test_label.to_list())
 
-        if (txt_file_name[-1] == "_"):
-            # TODO: need a better fix
-            # Naming is inconsistent in KIMORE, some videos has an extra underscore. The extra underscore needs to be removed
-            # i.e. 'CG_Expert_E_ID9_Es1_rgb_Blur_rgb271114_123334_'
-            txt_file_name = txt_file_name[:-1]
-
-        data = np.loadtxt(os.path.join(skeletal_features_path, txt_file_name + ".txt"), delimiter=',')
-        # Handle the special case where there is 1 feature
-        if len(data.shape) == 1:
-            assert len(data.shape) == len(feat_indices)
-
-        else:
-            data = data[:, feat_indices]
-
-        # Flatten the data
-        data_1D = np.reshape(data, -1)
-        train_x = np.vstack([train_x, data_1D])
+    all_IDs = []  # this is needed for cross-validation
 
     # Load data from the text file
-    for video_path in test_list:
-        txt_file_name = os.path.join(*(video_path.split('/')[-6:])).replace("/", "_").split(".")[0]
+    train_x, train_y, all_IDs = load_data_from_txt(full_train_list, all_y_list, all_IDs, skeletal_features_path, feat_indices, input_dim)
+    test_x, test_y, all_IDs = load_data_from_txt(test_list, all_y_list, all_IDs, skeletal_features_path, feat_indices, input_dim)
 
-        if (txt_file_name[-1] == "_"):
-            # TODO: need a better fix
-            # Naming is inconsistent in KIMORE, some videos has an extra underscore. The extra underscore needs to be removed
-            # i.e. 'CG_Expert_E_ID9_Es1_rgb_Blur_rgb271114_123334_'
-            txt_file_name = txt_file_name[:-1]
-
-        data = np.loadtxt(os.path.join(skeletal_features_path, txt_file_name + ".txt"), delimiter=',')
-        # Handle the special case where there is 1 feature
-        if len(data.shape) == 1:
-            assert len(data.shape) == len(feat_indices)
-
-        else:
-            data = data[:, feat_indices]
-        # Flatten the data
-        data_1D = np.reshape(data, -1)
-        test_x = np.vstack([test_x, data_1D])
+    # Normalize data
+    scaler = MinMaxScaler()
+    train_x = scaler.fit_transform(train_x)
+    test_x = scaler.fit_transform(test_x)
 
     # Load model
     if model_name == 'mlp':
-        model = MLPRegressor(hidden_layer_sizes=(300,100),
-                              max_iter=1000, random_state=seed,
-                              learning_rate_init=learning_rate, solver='adam')
-
+        output_size = 1
+        hidden_size = (input_dim + output_size)//2
+        model = MLPRegressor(hidden_layer_sizes=(300,100,), max_iter=5000, random_state=seed,
+                              learning_rate_init=learning_rate, solver='adam', activation='relu')
 
     elif model_name == 'linearReg':
         model = ElasticNet(alpha=1, l1_ratio=0.5, max_iter=5000, random_state=seed)
@@ -210,16 +212,18 @@ def main():
 
 
     # Evaluate the model by 5-fold cross-validation
+    all_x = np.vstack([train_x, test_x])
+    all_y = np.append(train_y, test_y)
 
-    cv_scores_mse = cross_val_score(model, np.vstack([train_x, test_x]), np.append(train_y, test_y), cv=KFold(n_splits=5),
-                                    scoring='neg_mean_squared_error')
+    kf = KFold(n_splits=5, random_state=seed, shuffle=True)
+
+    cv_scores_mse = cross_val_score(model, all_x, all_y, cv=kf, scoring='neg_mean_squared_error')
     cv_scores_mse = -1 * cv_scores_mse
     print("5-fold Cross Validation Scores (with MSE): {} mean: {:0.2f}".format(cv_scores_mse, cv_scores_mse.mean()))
-
     def custom_spearmanr(x, y):
         correlation, _ = stats.spearmanr(x, y)
         return correlation
-    cv_scores_spearman = cross_val_score(model, np.vstack([train_x, test_x]), np.append(train_y, test_y),cv=KFold(n_splits=5),
+    cv_scores_spearman = cross_val_score(model, all_x, all_y, cv=kf,
                                         scoring=make_scorer(custom_spearmanr, greater_is_better=True))
     print("5-fold Cross Validation Scores (with Spearman): {} mean: {:0.2f}".format(cv_scores_spearman,
                                                                                         cv_scores_spearman.mean()))
@@ -240,9 +244,39 @@ def main():
     record_test_results(output_path, colab_test_ID, labels_list, predict_list, test_loss, model_name, config,
                         cv_scores_mse, cv_scores_spearman)
     # Plot test results
-    plot_labels_and_outputs(labels_list, predict_list, config, model_name, colab_test_ID, test_loss)
+    # plot_labels_and_outputs(labels_list, predict_list, config, model_name, colab_test_ID, test_loss)
+
     # Plot training loss
     # plot_training_loss(model_name, 'loss', train_loss, test_loss, config, output_path)
 
+    counter = 1
+    for train_index, test_index in kf.split(all_x):
+        print("TRAIN:", train_index, "TEST:", test_index)
+        train_x, test_x = all_x[train_index], all_x[test_index]
+        train_y, test_y = all_y[train_index], all_y[test_index]
+
+        model.fit(train_x, train_y)
+        predict_list = model.predict(test_x)
+        labels_list = test_y
+        # Set up some numpy arrays to store the training/test loss/accuracy
+        test_loss = mean_squared_error(test_y, predict_list)
+
+        print(f'Folder: {counter}')
+        print("Test Loss: {:0.2f}".format(test_loss))
+
+        # converts all_IDs to numpy array
+        all_IDs_arr = np.array(all_IDs)
+        test_IDs = all_IDs_arr[test_index]
+        print('Test IDs: ' + str(test_IDs))
+        print('Test labels_list:  ' + str(list(np.around(labels_list, 2))))
+        print('Test predicts_list:' + str(list(np.around(predict_list, 2))))
+
+        plot_labels_and_outputs(labels_list, predict_list, config, model_name, test_IDs, test_loss, f'{model_name}_cv_{counter}.png')
+        counter += 1
+
+
 if __name__ == '__main__':
-    main()
+    models = ['RF','SVM','KNN2','lasso','linearReg','KNN5','mlp']
+    # models = ['mlp']
+    for i in models:
+        main(i)
